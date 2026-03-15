@@ -1,0 +1,402 @@
+'use client'
+
+import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
+import { createClient } from '@/lib/supabase'
+import { useWorkspaces } from '@/hooks/useWorkspaces'
+import {
+  FolderOpen,
+  FileText,
+  PenTool,
+  Users,
+  Plus,
+  ArrowRight,
+  Clock,
+  Activity,
+  Loader2,
+} from 'lucide-react'
+import { ActivityFeed } from '@/components/ActivityFeed'
+
+function useRecentDocuments() {
+  const supabase = createClient()
+  return useQuery({
+    queryKey: ['dashboard', 'recent-documents'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('id, title, workspace_id, updated_at, created_by, workspaces(name)')
+        .eq('is_archived', false)
+        .order('updated_at', { ascending: false })
+        .limit(5)
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+function useDashboardCounts() {
+  const supabase = createClient()
+  return useQuery({
+    queryKey: ['dashboard', 'counts'],
+    queryFn: async () => {
+      const [docs, whiteboards, members] = await Promise.all([
+        supabase.from('documents').select('id', { count: 'exact', head: true }).eq('is_archived', false),
+        supabase.from('whiteboard_sessions').select('id', { count: 'exact', head: true }).eq('is_archived', false),
+        supabase.from('workspace_members').select('user_id', { count: 'exact', head: true }),
+      ])
+      return {
+        documents: docs.count ?? 0,
+        whiteboards: whiteboards.count ?? 0,
+        members: members.count ?? 0,
+      }
+    },
+  })
+}
+
+function useRecentActivities() {
+  const supabase = createClient()
+  return useQuery({
+    queryKey: ['dashboard', 'recent-activities'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (error) throw error
+      return (data ?? []).map((log) => ({
+        id: log.id,
+        user_id: log.user_id,
+        user_name: log.user_id?.slice(0, 8) ?? 'Unknown',
+        action: log.action as string,
+        entity_type: log.entity_type as string,
+        entity_id: log.entity_id,
+        entity_title: log.entity_type ?? '',
+        workspace_name: '',
+        created_at: log.created_at,
+      }))
+    },
+  })
+}
+
+const quickActions = [
+  {
+    href: '/documents',
+    label: 'New Document',
+    description: 'Create a new document',
+    icon: FileText,
+    color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
+  },
+  {
+    href: '/workspaces',
+    label: 'New Workspace',
+    description: 'Set up a team workspace',
+    icon: FolderOpen,
+    color: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400',
+  },
+  {
+    href: '/templates',
+    label: 'From Template',
+    description: 'Start from a template',
+    icon: Plus,
+    color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400',
+  },
+  {
+    href: '/calls',
+    label: 'Start a Call',
+    description: 'Start a video call',
+    icon: Users,
+    color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
+  },
+]
+
+const WORKSPACE_COLORS = [
+  'from-blue-500 to-indigo-500',
+  'from-green-500 to-emerald-500',
+  'from-purple-500 to-pink-500',
+  'from-amber-500 to-orange-500',
+  'from-red-500 to-rose-500',
+  'from-cyan-500 to-teal-500',
+]
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins} min ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs} hr ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}
+
+export default function UserDashboardPage() {
+  const { list: workspacesList } = useWorkspaces()
+  const workspaces = workspacesList.data ?? []
+  const counts = useDashboardCounts()
+  const recentDocs = useRecentDocuments()
+  const recentActivities = useRecentActivities()
+
+  const isLoading = workspacesList.isLoading || counts.isLoading
+
+  const stats = [
+    {
+      label: 'Workspaces',
+      value: workspaces.length,
+      icon: FolderOpen,
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+    },
+    {
+      label: 'Documents',
+      value: counts.data?.documents ?? 0,
+      icon: FileText,
+      color: 'text-green-600 dark:text-green-400',
+      bgColor: 'bg-green-50 dark:bg-green-900/20',
+    },
+    {
+      label: 'Whiteboards',
+      value: counts.data?.whiteboards ?? 0,
+      icon: PenTool,
+      color: 'text-purple-600 dark:text-purple-400',
+      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+    },
+    {
+      label: 'Team Members',
+      value: counts.data?.members ?? 0,
+      icon: Users,
+      color: 'text-amber-600 dark:text-amber-400',
+      bgColor: 'bg-amber-50 dark:bg-amber-900/20',
+    },
+  ]
+
+  const recentWorkspaces = workspaces.slice(0, 3)
+  const documents = recentDocs.data ?? []
+  const activities = recentActivities.data ?? []
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-foreground">Welcome back!</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
+          Here&apos;s what&apos;s happening across your workspaces.
+        </p>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        {stats.map((stat) => {
+          const Icon = stat.icon
+          return (
+            <div
+              key={stat.label}
+              className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {stat.label}
+                  </p>
+                  <p className="text-2xl font-bold mt-1">
+                    {isLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                    ) : (
+                      stat.value
+                    )}
+                  </p>
+                </div>
+                <div className={`p-3 rounded-xl ${stat.bgColor}`}>
+                  <Icon className={`h-6 w-6 ${stat.color}`} />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {quickActions.map((action) => {
+            const Icon = action.icon
+            return (
+              <Link
+                key={action.href + action.label}
+                href={action.href}
+                className="flex flex-col items-center gap-2 p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:border-blue-300 dark:hover:border-blue-700 transition-colors text-center group"
+              >
+                <div className={`p-3 rounded-lg ${action.color}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{action.label}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                    {action.description}
+                  </p>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Recent Workspaces */}
+        <div className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <FolderOpen className="h-4.5 w-4.5 text-gray-400" />
+              Recent Workspaces
+            </h2>
+            <Link
+              href="/workspaces"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            >
+              View all <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {workspacesList.isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              </div>
+            ) : recentWorkspaces.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 text-sm">
+                No workspaces yet. Create one to get started.
+              </div>
+            ) : (
+              recentWorkspaces.map((ws, i) => (
+                <Link
+                  key={ws.id}
+                  href={`/workspaces/${ws.id}`}
+                  className="flex items-center gap-4 p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+                >
+                  <div
+                    className={`h-10 w-10 rounded-lg bg-gradient-to-br ${WORKSPACE_COLORS[i % WORKSPACE_COLORS.length]} flex items-center justify-center text-white font-semibold text-sm shrink-0`}
+                  >
+                    {ws.name[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{ws.name}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      {ws.description || 'No description'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                    <Clock className="h-3 w-3" />
+                    {timeAgo(ws.created_at)}
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Activity className="h-4.5 w-4.5 text-gray-400" />
+              Recent Activity
+            </h2>
+            <Link
+              href="/activity"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            >
+              View all <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+            {recentActivities.isLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+              </div>
+            ) : activities.length > 0 ? (
+              <ActivityFeed
+                initialActivities={activities}
+                compact
+                maxItems={5}
+              />
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-4">
+                No recent activity
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Documents */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <FileText className="h-4.5 w-4.5 text-gray-400" />
+            Recent Documents
+          </h2>
+          <Link
+            href="/documents"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+          >
+            View all <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
+          {recentDocs.isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : documents.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">
+              No documents yet
+            </p>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-sm text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800">
+                  <th className="px-5 py-3 font-medium">Document</th>
+                  <th className="px-5 py-3 font-medium">Workspace</th>
+                  <th className="px-5 py-3 font-medium text-right">
+                    Last updated
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map((doc) => (
+                  <tr
+                    key={doc.id}
+                    className="border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                  >
+                    <td className="px-5 py-3">
+                      <Link
+                        href={`/documents/${doc.id}`}
+                        className="flex items-center gap-2 text-sm font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        <FileText className="h-4 w-4 text-gray-400 shrink-0" />
+                        {doc.title}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {(doc as Record<string, unknown>).workspaces
+                          ? ((doc as Record<string, unknown>).workspaces as { name: string }).name
+                          : '—'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <span className="text-sm text-gray-400 dark:text-gray-500">
+                        {timeAgo(doc.updated_at)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

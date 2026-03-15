@@ -58,6 +58,10 @@ interface PresenceData {
   cursorPosition?: { x: number; y: number };
   activePageId?: string;
   lastActivity: number;
+  isTyping?: boolean;
+  viewingEntityId?: string;
+  viewingEntityType?: 'document' | 'whiteboard' | 'page';
+  followingUserId?: string;
 }
 
 @WebSocketGateway({ path: '/ws' })
@@ -376,6 +380,7 @@ export class RealtimeGateway
     @MessageBody() data: { room: string },
   ) {
     if (!client.userId) return;
+    this.updatePresenceField(data.room, client.userId, { isTyping: true });
     this.broadcastToRoom(
       data.room,
       'typing:start',
@@ -390,12 +395,90 @@ export class RealtimeGateway
     @MessageBody() data: { room: string },
   ) {
     if (!client.userId) return;
+    this.updatePresenceField(data.room, client.userId, { isTyping: false });
     this.broadcastToRoom(
       data.room,
       'typing:stop',
       { userId: client.userId },
       client.userId,
     );
+  }
+
+  // ─── Viewing Status ────────────────────────────────────────────
+
+  @SubscribeMessage('viewing:start')
+  handleViewingStart(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { room: string; entityId: string; entityType: 'document' | 'whiteboard' | 'page' },
+  ) {
+    if (!client.userId) return;
+    this.updatePresenceField(data.room, client.userId, {
+      viewingEntityId: data.entityId,
+      viewingEntityType: data.entityType,
+      lastActivity: Date.now(),
+    });
+    this.broadcastToRoom(
+      data.room,
+      'viewing:update',
+      { userId: client.userId, userName: client.userName, entityId: data.entityId, entityType: data.entityType },
+      client.userId,
+    );
+    this.broadcastPresenceUpdate(data.room);
+  }
+
+  @SubscribeMessage('viewing:stop')
+  handleViewingStop(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { room: string },
+  ) {
+    if (!client.userId) return;
+    this.updatePresenceField(data.room, client.userId, {
+      viewingEntityId: undefined,
+      viewingEntityType: undefined,
+    });
+    this.broadcastToRoom(
+      data.room,
+      'viewing:update',
+      { userId: client.userId, userName: client.userName, entityId: null, entityType: null },
+      client.userId,
+    );
+    this.broadcastPresenceUpdate(data.room);
+  }
+
+  // ─── Follow Mode ───────────────────────────────────────────────
+
+  @SubscribeMessage('follow:start')
+  handleFollowStart(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { room: string; targetUserId: string },
+  ) {
+    if (!client.userId) return;
+    this.updatePresenceField(data.room, client.userId, {
+      followingUserId: data.targetUserId,
+    });
+    this.broadcastToRoom(
+      data.room,
+      'follow:started',
+      { userId: client.userId, userName: client.userName, targetUserId: data.targetUserId },
+    );
+    this.broadcastPresenceUpdate(data.room);
+  }
+
+  @SubscribeMessage('follow:stop')
+  handleFollowStop(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { room: string },
+  ) {
+    if (!client.userId) return;
+    this.updatePresenceField(data.room, client.userId, {
+      followingUserId: undefined,
+    });
+    this.broadcastToRoom(
+      data.room,
+      'follow:stopped',
+      { userId: client.userId, userName: client.userName },
+    );
+    this.broadcastPresenceUpdate(data.room);
   }
 
   // ─── Private Helpers ──────────────────────────────────────────────

@@ -3,6 +3,7 @@
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import CommandPalette from '@/components/CommandPalette'
+import GlobalSearch from '@/components/GlobalSearch'
 
 export default function DashboardLayout({
   children,
@@ -19,6 +20,7 @@ export default function DashboardLayout({
         </main>
       </div>
       <CommandPalette />
+      <GlobalSearch />
     </div>
   )
 }

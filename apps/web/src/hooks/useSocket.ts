@@ -141,6 +141,22 @@ export function useSocket(options: UseSocketOptions = {}) {
     socketRef.current?.sendPresenceUpdate(room, status)
   }, [])
 
+  const sendViewingStart = useCallback((room: string, entityId: string, entityType: 'document' | 'whiteboard' | 'page') => {
+    socketRef.current?.sendViewingStart(room, entityId, entityType)
+  }, [])
+
+  const sendViewingStop = useCallback((room: string) => {
+    socketRef.current?.sendViewingStop(room)
+  }, [])
+
+  const sendFollowStart = useCallback((room: string, targetUserId: string) => {
+    socketRef.current?.sendFollowStart(room, targetUserId)
+  }, [])
+
+  const sendFollowStop = useCallback((room: string) => {
+    socketRef.current?.sendFollowStop(room)
+  }, [])
+
   return {
     socket: socketRef.current,
     isConnected,
@@ -155,5 +171,9 @@ export function useSocket(options: UseSocketOptions = {}) {
     sendTypingStart,
     sendTypingStop,
     sendPresenceUpdate,
+    sendViewingStart,
+    sendViewingStop,
+    sendFollowStart,
+    sendFollowStop,
   }
 }

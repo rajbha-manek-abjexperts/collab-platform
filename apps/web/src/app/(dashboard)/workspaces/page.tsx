@@ -1,20 +1,22 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
-import { Plus, FolderOpen, Users, MoreHorizontal } from 'lucide-react'
-
-interface Workspace {
-  id: string
-  name: string
-  slug: string
-  description: string | null
-  member_count: number
-  created_at: string
-}
+import { Plus, FolderOpen, Users, MoreHorizontal, Loader2 } from 'lucide-react'
+import { useWorkspaces } from '@/hooks/useWorkspaces'
 
 export default function WorkspacesPage() {
-  const [workspaces] = useState<Workspace[]>([])
+  const { list, create } = useWorkspaces()
+  const workspaces = list.data ?? []
+
+  const handleCreate = () => {
+    const name = prompt('Workspace name:')
+    if (name?.trim()) {
+      create.mutate({
+        name: name.trim(),
+        slug: name.trim().toLowerCase().replace(/\s+/g, '-'),
+      })
+    }
+  }
 
   return (
     <div>
@@ -26,21 +28,46 @@ export default function WorkspacesPage() {
             Manage your team workspaces and collaborations.
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
-          <Plus className="h-4 w-4" />
+        <button
+          onClick={handleCreate}
+          disabled={create.isPending}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+        >
+          {create.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4" />
+          )}
           New Workspace
         </button>
       </div>
 
-      {/* Workspace Grid */}
-      {workspaces.length === 0 ? (
+      {/* Loading State */}
+      {list.isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      ) : list.isError ? (
+        <div className="text-center py-16 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl">
+          <p className="text-red-500 mb-2">Failed to load workspaces</p>
+          <button
+            onClick={() => list.refetch()}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Retry
+          </button>
+        </div>
+      ) : workspaces.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl">
           <FolderOpen className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
           <h3 className="text-lg font-medium mb-2">No workspaces yet</h3>
           <p className="text-gray-500 dark:text-gray-400 mb-6">
             Create your first workspace to start collaborating.
           </p>
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+          <button
+            onClick={handleCreate}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
             <Plus className="h-4 w-4" />
             Create Workspace
           </button>
@@ -72,7 +99,7 @@ export default function WorkspacesPage() {
               )}
               <div className="flex items-center gap-1 text-xs text-gray-400">
                 <Users className="h-3.5 w-3.5" />
-                <span>{ws.member_count} members</span>
+                <span>Workspace</span>
               </div>
             </Link>
           ))}

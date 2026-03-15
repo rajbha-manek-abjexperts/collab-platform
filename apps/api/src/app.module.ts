@@ -16,6 +16,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { SharingModule } from './modules/sharing/sharing.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     AnalyticsModule,
     AuditModule,
     WebhooksModule,
+    SharingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,31 +1,41 @@
-import { createClient } from '@/lib/supabase'
-import type { SupabaseClient } from '@supabase/supabase-js'
+// API Configuration
+// Points to NestJS backend
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public readonly code?: string,
-    public readonly status?: number
-  ) {
-    super(message)
-    this.name = 'ApiError'
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'
+
+// Helper for API calls
+export async function apiFetch<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Request failed' }))
+    throw new Error(error.message || `API Error: ${response.status}`)
   }
+
+  return response.json()
 }
 
-/**
- * Returns a Supabase client instance for API calls.
- * Centralizes client creation so all API modules use the same factory.
- */
-export function getClient(): SupabaseClient {
-  return createClient()
+// Auth helpers
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem('access_token')
 }
 
-/**
- * Unwraps a Supabase response, throwing an ApiError on failure.
- */
-export function unwrap<T>(response: { data: T | null; error: { message: string; code?: string } | null }): T {
-  if (response.error) {
-    throw new ApiError(response.error.message, response.error.code)
-  }
-  return response.data as T
+export function setAuthToken(token: string): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem('access_token', token)
+}
+
+export function clearAuthToken(): void {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem('access_token')
 }

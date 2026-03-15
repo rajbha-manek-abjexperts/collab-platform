@@ -1,114 +1,98 @@
-'use client'
+import { useState, useEffect, useCallback } from 'react'
+import { apiFetch, getAuthToken } from '../lib/api'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { createClient } from '@/lib/supabase'
-import type {
-  Document,
-  DocumentInsert,
-  DocumentUpdate,
-  DocumentWithVersions,
-} from '@collab/shared'
-
-const DOCUMENTS_KEY = ['documents'] as const
-
-export function useDocuments(workspaceId: string | undefined) {
-  const supabase = createClient()
-  const queryClient = useQueryClient()
-
-  const list = useQuery({
-    queryKey: [...DOCUMENTS_KEY, workspaceId],
-    queryFn: async (): Promise<Document[]> => {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('workspace_id', workspaceId!)
-        .eq('is_archived', false)
-        .order('updated_at', { ascending: false })
-      if (error) throw error
-      return data
-    },
-    enabled: !!workspaceId,
-  })
-
-  const create = useMutation({
-    mutationFn: async (doc: DocumentInsert): Promise<Document> => {
-      const { data, error } = await supabase
-        .from('documents')
-        .insert(doc)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...DOCUMENTS_KEY, workspaceId] })
-    },
-  })
-
-  const update = useMutation({
-    mutationFn: async ({ id, ...updates }: DocumentUpdate & { id: string }): Promise<Document> => {
-      const { data, error } = await supabase
-        .from('documents')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [...DOCUMENTS_KEY, workspaceId] })
-      queryClient.invalidateQueries({ queryKey: ['document', data.id] })
-    },
-  })
-
-  const archive = useMutation({
-    mutationFn: async (id: string): Promise<Document> => {
-      const { data, error } = await supabase
-        .from('documents')
-        .update({ is_archived: true })
-        .eq('id', id)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...DOCUMENTS_KEY, workspaceId] })
-    },
-  })
-
-  const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('documents').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...DOCUMENTS_KEY, workspaceId] })
-    },
-  })
-
-  return { list, create, update, archive, remove }
+export interface Document {
+  id: string
+  workspace_id: string
+  title: string
+  content: Record<string, unknown>
+  content_text: string
+  created_by: string
+  created_at: string
+  updated_at: string
 }
 
-export function useDocument(id: string | undefined) {
-  const supabase = createClient()
+export function useDocuments(workspaceId: string) {
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  return useQuery({
-    queryKey: ['document', id],
-    queryFn: async (): Promise<DocumentWithVersions> => {
-      const { data, error } = await supabase
-        .from('documents')
-        .select(`
-          *,
-          versions(*)
-        `)
-        .eq('id', id!)
-        .order('version_number', { referencedTable: 'versions', ascending: false })
-        .single()
-      if (error) throw error
-      return data as unknown as DocumentWithVersions
-    },
-    enabled: !!id,
-  })
+  const fetchDocuments = useCallback(async () => {
+    if (!workspaceId) {
+      setDocuments([])
+      setLoading(false)
+      return
+    }
+    try {
+      setLoading(true)
+      const token = getAuthToken()
+      if (!token) {
+        setDocuments([])
+        return
+      }
+      const data = await apiFetch<Document[]>(`/api/workspaces/${workspaceId}/documents`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      setDocuments(data)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch documents')
+      setDocuments([])
+    } finally {
+      setLoading(false)
+    }
+  }, [workspaceId])
+
+  useEffect(() => {
+    fetchDocuments()
+  }, [fetchDocuments])
+
+  const createDocument = useCallback(async (title: string, content: Record<string, unknown> = {}) => {
+    const token = getAuthToken()
+    const document = await apiFetch<Document>(`/api/workspaces/${workspaceId}/documents`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ title, content }),
+    })
+    setDocuments(prev => [...prev, document])
+    return document
+  }, [workspaceId])
+
+  const updateDocument = useCallback(async (id: string, updates: Partial<Document>) => {
+    const token = getAuthToken()
+    const document = await apiFetch<Document>(`/api/workspaces/${workspaceId}/documents/${id}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(updates),
+    })
+    setDocuments(prev => prev.map(d => d.id === id ? document : d))
+    return document
+  }, [workspaceId])
+
+  const deleteDocument = useCallback(async (id: string) => {
+    const token = getAuthToken()
+    await apiFetch(`/api/workspaces/${workspaceId}/documents/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    setDocuments(prev => prev.filter(d => d.id !== id))
+  }, [workspaceId])
+
+  return {
+    documents,
+    loading,
+    error,
+    refetch: fetchDocuments,
+    createDocument,
+    updateDocument,
+    deleteDocument,
+  }
 }

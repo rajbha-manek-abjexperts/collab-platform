@@ -182,6 +182,26 @@ export class CollabSocket {
     this.send('typing:stop', { room });
   }
 
+  // ─── Viewing Status ─────────────────────────────────────────────
+
+  sendViewingStart(room: string, entityId: string, entityType: 'document' | 'whiteboard' | 'page') {
+    this.send('viewing:start', { room, entityId, entityType });
+  }
+
+  sendViewingStop(room: string) {
+    this.send('viewing:stop', { room });
+  }
+
+  // ─── Follow Mode ───────────────────────────────────────────────
+
+  sendFollowStart(room: string, targetUserId: string) {
+    this.send('follow:start', { room, targetUserId });
+  }
+
+  sendFollowStop(room: string) {
+    this.send('follow:stop', { room });
+  }
+
   // ─── Event Handling ───────────────────────────────────────────────
 
   on(event: string, handler: EventHandler): () => void {

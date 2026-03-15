@@ -1,115 +1,81 @@
-'use client'
+import { useState, useEffect, useCallback } from 'react'
+import { apiFetch, setAuthToken, clearAuthToken, getAuthToken } from '../lib/api'
 
-import { useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { createClient } from '@/lib/supabase'
-import type { User } from '@collab/shared'
+export interface User {
+  id: string
+  email: string
+  first_name?: string
+  last_name?: string
+}
 
-const AUTH_QUERY_KEY = ['auth', 'user'] as const
+export interface AuthResponse {
+  user: User
+  access_token: string
+  refresh_token: string
+}
 
 export function useAuth() {
-  const supabase = createClient()
-  const router = useRouter()
-  const queryClient = useQueryClient()
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const { data: user, isLoading } = useQuery({
-    queryKey: AUTH_QUERY_KEY,
-    queryFn: async (): Promise<User | null> => {
-      const { data: { user: authUser }, error } = await supabase.auth.getUser()
-      if (error || !authUser) return null
-      return {
-        id: authUser.id,
-        email: authUser.email ?? '',
-        full_name: authUser.user_metadata?.full_name ?? null,
-        avatar_url: authUser.user_metadata?.avatar_url ?? null,
-        created_at: authUser.created_at,
-        updated_at: authUser.updated_at ?? authUser.created_at,
-      }
-    },
-    staleTime: 1000 * 60 * 5,
-    retry: false,
-  })
-
-  const signInWithPassword = useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY })
-      router.push('/')
-    },
-  })
-
-  const signUp = useMutation({
-    mutationFn: async ({ email, password, fullName }: { email: string; password: string; fullName?: string }) => {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName } },
+  const checkAuth = useCallback(async () => {
+    const token = getAuthToken()
+    if (!token) {
+      setUser(null)
+      setLoading(false)
+      return
+    }
+    try {
+      // For now, we'll decode the JWT to get user info
+      // In production, you'd have a /me endpoint
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      setUser({
+        id: payload.id,
+        email: payload.email,
       })
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY })
-    },
-  })
+    } catch {
+      clearAuthToken()
+      setUser(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  const signInWithOAuth = useMutation({
-    mutationFn: async (provider: 'google' | 'github') => {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
-      })
-      if (error) throw error
-      return data
-    },
-  })
+  useEffect(() => {
+    checkAuth()
+  }, [checkAuth])
 
-  const signOut = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.clear()
-      router.push('/login')
-    },
-  })
+  const login = useCallback(async (email: string, password: string) => {
+    const response = await apiFetch<AuthResponse>('/api/auth/signin', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    })
+    setAuthToken(response.access_token)
+    setUser(response.user)
+    return response
+  }, [])
 
-  const updateProfile = useMutation({
-    mutationFn: async (profile: { full_name?: string; avatar_url?: string }) => {
-      const { data, error } = await supabase.auth.updateUser({
-        data: profile,
-      })
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY })
-    },
-  })
+  const register = useCallback(async (email: string, password: string, firstName?: string, lastName?: string) => {
+    const response = await apiFetch<AuthResponse>('/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, firstName, lastName }),
+    })
+    setAuthToken(response.access_token)
+    setUser(response.user)
+    return response
+  }, [])
 
-  const resetPassword = useMutation({
-    mutationFn: async (email: string) => {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
-      })
-      if (error) throw error
-    },
-  })
+  const logout = useCallback(() => {
+    clearAuthToken()
+    setUser(null)
+  }, [])
 
   return {
     user,
-    isLoading,
-    signInWithPassword,
-    signUp,
-    signInWithOAuth,
-    signOut,
-    updateProfile,
-    resetPassword,
+    loading,
+    login,
+    register,
+    logout,
+    isAuthenticated: !!user,
   }
 }

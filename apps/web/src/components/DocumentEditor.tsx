@@ -19,10 +19,13 @@ import {
   Save,
   Code,
   Quote,
+  Sparkles,
 } from 'lucide-react'
 import type { DocumentContent } from '@/types/document'
+import AISummarizer from './AISummarizer'
 
 interface DocumentEditorProps {
+  documentId?: string
   initialContent?: DocumentContent | null
   onSave?: (content: DocumentContent) => void
 }
@@ -66,10 +69,11 @@ const toolbarButtons: ToolbarButton[] = [
   { command: 'link', icon: LinkIcon, label: 'Insert Link', group: 5 },
 ]
 
-export default function DocumentEditor({ initialContent, onSave }: DocumentEditorProps) {
+export default function DocumentEditor({ documentId, initialContent, onSave }: DocumentEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const [wordCount, setWordCount] = useState(0)
   const [charCount, setCharCount] = useState(0)
+  const [showSummarizer, setShowSummarizer] = useState(false)
 
   const execCommand = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value)
@@ -174,17 +178,27 @@ export default function DocumentEditor({ initialContent, onSave }: DocumentEdito
           </div>
         ))}
 
+        <div className="flex-1" />
+        <button
+          onClick={() => setShowSummarizer(!showSummarizer)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${
+            showSummarizer
+              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
+              : 'text-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
+          }`}
+          title="AI Summary"
+        >
+          <Sparkles className="h-4 w-4" />
+          AI
+        </button>
         {onSave && (
-          <>
-            <div className="flex-1" />
-            <button
-              onClick={handleSave}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-            >
-              <Save className="h-4 w-4" />
-              Save
-            </button>
-          </>
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            <Save className="h-4 w-4" />
+            Save
+          </button>
         )}
       </div>
 
@@ -205,6 +219,16 @@ export default function DocumentEditor({ initialContent, onSave }: DocumentEdito
           [&_a]:text-blue-600 [&_a]:underline"
         data-placeholder="Start typing..."
       />
+
+      {/* AI Summarizer panel */}
+      {showSummarizer && (
+        <div className="border-t border-gray-200 dark:border-gray-800">
+          <AISummarizer
+            documentId={documentId || ''}
+            content={editorRef.current?.innerText || ''}
+          />
+        </div>
+      )}
 
       {/* Status bar */}
       <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-gray-800 text-xs text-gray-400">

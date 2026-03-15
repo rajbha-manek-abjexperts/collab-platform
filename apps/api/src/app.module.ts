@@ -17,6 +17,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { SharingModule } from './modules/sharing/sharing.module';
+import { AIModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { SharingModule } from './modules/sharing/sharing.module';
     AuditModule,
     WebhooksModule,
     SharingModule,
+    AIModule,
   ],
   controllers: [AppController],
   providers: [AppService],

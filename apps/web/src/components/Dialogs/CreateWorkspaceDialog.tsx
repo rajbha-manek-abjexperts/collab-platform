@@ -54,16 +54,16 @@ export default function CreateWorkspaceDialog({ isOpen, onClose, onSuccess }: Cr
       />
       
       {/* Dialog */}
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
               <Folder className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Create Workspace</h2>
-              <p className="text-sm text-gray-500">Set up a new team workspace</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create Workspace</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Set up a new team workspace</p>
             </div>
           </div>
           <button
@@ -83,7 +83,7 @@ export default function CreateWorkspaceDialog({ isOpen, onClose, onSuccess }: Cr
           )}
 
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Workspace Name *
             </label>
             <input
@@ -93,13 +93,13 @@ export default function CreateWorkspaceDialog({ isOpen, onClose, onSuccess }: Cr
               onChange={(e) => setName(e.target.value)}
               required
               placeholder="My Awesome Team"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all"
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-all dark:text-white"
               autoFocus
             />
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Description
             </label>
             <textarea
@@ -108,7 +108,7 @@ export default function CreateWorkspaceDialog({ isOpen, onClose, onSuccess }: Cr
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="What is this workspace for?"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all resize-none"
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-all resize-none dark:text-white"
             />
           </div>
 
@@ -116,7 +116,7 @@ export default function CreateWorkspaceDialog({ isOpen, onClose, onSuccess }: Cr
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+              className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
               Cancel
             </button>

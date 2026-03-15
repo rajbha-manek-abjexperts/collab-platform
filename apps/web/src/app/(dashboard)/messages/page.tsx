@@ -113,9 +113,9 @@ export default function MessagesPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Conversations List */}
-      <div className="w-80 border-r border-gray-200 bg-white flex flex-col">
-        <div className="p-4 border-b border-gray-100">
-          <h1 className="text-xl font-bold text-gray-900 mb-4">Messages</h1>
+      <div className="w-80 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex flex-col">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-800">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Messages</h1>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -123,7 +123,7 @@ export default function MessagesPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search conversations..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-white"
             />
           </div>
         </div>
@@ -133,8 +133,8 @@ export default function MessagesPage() {
             <button
               key={contact.id}
               onClick={() => setSelectedContact(contact)}
-              className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors text-left ${
-                selectedContact?.id === contact.id ? 'bg-blue-50 hover:bg-blue-50' : ''
+              className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left ${
+                selectedContact?.id === contact.id ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-50 dark:hover:bg-blue-900/30' : ''
               }`}
             >
               <div className="relative">
@@ -145,7 +145,7 @@ export default function MessagesPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <p className="font-medium text-gray-900 truncate">{contact.name}</p>
+                  <p className="font-medium text-gray-900 dark:text-white truncate">{contact.name}</p>
                   <span className="text-xs text-gray-400">2m</span>
                 </div>
                 <p className="text-sm text-gray-500 truncate">
@@ -162,17 +162,17 @@ export default function MessagesPage() {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 flex flex-col bg-white dark:bg-gray-900">
         {selectedContact ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 bg-gradient-to-br ${selectedContact.color} rounded-full flex items-center justify-center text-white font-medium`}>
                   {selectedContact.avatar}
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">{selectedContact.name}</p>
+                  <p className="font-semibold text-gray-900 dark:text-white">{selectedContact.name}</p>
                   <p className="text-sm text-green-600 flex items-center gap-1">
                     <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                     Online
@@ -180,14 +180,14 @@ export default function MessagesPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                  <Phone className="w-5 h-5 text-gray-600" />
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
+                  <Phone className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 </button>
-                <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                  <Video className="w-5 h-5 text-gray-600" />
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
+                  <Video className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 </button>
-                <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                  <MoreVertical className="w-5 h-5 text-gray-600" />
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
+                  <MoreVertical className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 </button>
               </div>
             </div>
@@ -209,9 +209,9 @@ export default function MessagesPage() {
                         {isOwn ? 'Y' : contact?.avatar}
                       </div>
                       <div className={`p-3 rounded-2xl ${
-                        isOwn 
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-md' 
-                          : 'bg-gray-100 text-gray-900 rounded-bl-md'
+                        isOwn
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-md'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
                       }`}>
                         <p className="whitespace-pre-wrap">{msg.content}</p>
                         <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
@@ -235,18 +235,18 @@ export default function MessagesPage() {
             </div>
 
             {/* Message Input */}
-            <div className="p-4 border-t border-gray-200">
+            <div className="p-4 border-t border-gray-200 dark:border-gray-800">
               <div className="flex items-center gap-3">
-                <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                  <Paperclip className="w-5 h-5 text-gray-600" />
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
+                  <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 </button>
                 <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                   placeholder="Type a message..."
-                  className="flex-1 px-4 py-3 bg-gray-100 border-0 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                  className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-700 transition-all dark:text-white"
                 />
                 <button 
                   onClick={handleSendMessage}
@@ -266,8 +266,8 @@ export default function MessagesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.189 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Select a conversation</h2>
-              <p className="text-gray-500">Choose a conversation from the list to start messaging</p>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Select a conversation</h2>
+              <p className="text-gray-500 dark:text-gray-400">Choose a conversation from the list to start messaging</p>
             </div>
           </div>
         )}

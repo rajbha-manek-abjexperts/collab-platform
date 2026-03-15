@@ -30,7 +30,7 @@ function DocumentPageContent({
   const [title, setTitle] = useState('Untitled Document')
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [isEditing, setIsEditing] = useState(true)
-  const [content, setContent] = useState<OutputData | null>(null)
+  const [content, setContent] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 

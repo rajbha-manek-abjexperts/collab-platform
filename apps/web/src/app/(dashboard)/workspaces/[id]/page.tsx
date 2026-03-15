@@ -41,13 +41,12 @@ export default function WorkspaceDetailsPage({
     async function fetchWorkspace() {
       try {
         const token = localStorage.getItem('access_token')
-        const res = await apiFetch(`/api/workspaces/${id}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        const res: any = await apiFetch(`/api/workspaces/${id}`, {
+          headers: token ? { Authorization: `Bearer ${token}`} : {}
         })
         
-        if (res.ok) {
-          const data = await res.json()
-          setWorkspace(data)
+        if (res.id) {
+          setWorkspace(res)
         } else {
           // Use demo data
           setWorkspace({

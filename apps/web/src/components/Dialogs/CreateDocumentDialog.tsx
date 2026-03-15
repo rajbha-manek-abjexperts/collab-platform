@@ -57,15 +57,15 @@ export default function CreateDocumentDialog({
         onClick={onClose}
       />
       
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+      <div className="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center">
               <FileText className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Create Document</h2>
-              <p className="text-sm text-gray-500">Start a new document</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create Document</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Start a new document</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl">
@@ -81,7 +81,7 @@ export default function CreateDocumentDialog({
           )}
 
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Document Title *
             </label>
             <input
@@ -91,7 +91,7 @@ export default function CreateDocumentDialog({
               onChange={(e) => setTitle(e.target.value)}
               required
               placeholder="My New Document"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all"
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-all dark:text-white"
               autoFocus
             />
           </div>
@@ -100,7 +100,7 @@ export default function CreateDocumentDialog({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+              className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
               Cancel
             </button>

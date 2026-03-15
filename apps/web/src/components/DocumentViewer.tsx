@@ -33,15 +33,16 @@ export default function DocumentViewer({ content }: DocumentViewerProps) {
 
   return (
     <div className="prose max-w-none">
-      {data.blocks.map((block, index) => {
+      {data.blocks.map((block: any, index: number) => {
         switch (block.type) {
           case 'header':
+            const level = block.data.level || 2
             const HeadingComponent = {
               1: 'h1',
               2: 'h2', 
               3: 'h3',
               4: 'h4'
-            }[block.data.level || 2] || 'h2'
+            }[level as keyof typeof { 1: 'h1', 2: 'h2', 3: 'h3', 4: 'h4' }] || 'h2'
             
             if (HeadingComponent === 'h1') {
               return (

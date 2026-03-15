@@ -79,9 +79,9 @@ export default function WorkspacesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {workspaces.map((ws) => (
+          {workspaces.map((ws, i) => (
             <Link
-              key={ws.id}
+              key={ws.id || i}
               href={`/workspaces/${ws.slug}`}
               className="block p-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
             >

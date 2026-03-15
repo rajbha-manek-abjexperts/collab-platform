@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Plus, FileText, Search, MoreHorizontal, Clock, Loader2 } from 'lucide-react'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { apiFetch, getAuthToken } from '@/lib/api'
+import CreateDocumentDialog from '@/components/Dialogs/CreateDocumentDialog'
 
 interface Document {
   id: string
@@ -23,6 +24,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
 
   const fetchAllDocuments = useCallback(async () => {
     if (workspaces.length === 0) {
@@ -85,7 +87,10 @@ export default function DocumentsPage() {
             Browse and manage all your documents.
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+        <button
+          onClick={() => setShowCreateDialog(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+        >
           <Plus className="h-4 w-4" />
           New Document
         </button>
@@ -130,7 +135,10 @@ export default function DocumentsPage() {
               : 'Create your first document to get started.'}
           </p>
           {!search && (
-            <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+            <button
+              onClick={() => setShowCreateDialog(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
               <Plus className="h-4 w-4" />
               Create Document
             </button>
@@ -169,6 +177,13 @@ export default function DocumentsPage() {
           ))}
         </div>
       )}
+
+      <CreateDocumentDialog
+        isOpen={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        workspaceId={workspaces[0]?.id}
+        onSuccess={() => fetchAllDocuments()}
+      />
     </div>
   )
 }

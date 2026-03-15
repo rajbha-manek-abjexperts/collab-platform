@@ -36,15 +36,43 @@ export default function MessagesPage() {
 
   // Load messages when contact changes
   useEffect(() => {
-    // Demo messages
-    const demoMessages: Message[] = [
-      { id: '1', sender_id: 'user-2', content: 'Hey! Did you get a chance to look at the latest designs I shared?', created_at: '10:30 AM', status: 'read' },
-      { id: '2', sender_id: DEMO_USER.id, content: 'Yes! They look amazing. I love the new color scheme.', created_at: '10:32 AM', status: 'read' },
-      { id: '3', sender_id: 'user-2', content: "Great! I've made some more updates. Let me know what you think.", created_at: '10:35 AM', status: 'read' },
-      { id: '4', sender_id: DEMO_USER.id, content: "Sure, send them over! I'm in the workspace now.", created_at: '10:36 AM', status: 'read' },
-      { id: '5', sender_id: 'user-2', content: "Perfect! I've just added them to the shared folder.", created_at: '10:38 AM', status: 'read' },
-    ]
-    setMessages(demoMessages)
+    if (!selectedContact) return
+
+    const contactId = selectedContact.id
+    const contactName = selectedContact.name.split(' ')[0]
+
+    const demoConversations: Record<string, Message[]> = {
+      'user-2': [
+        { id: '1', sender_id: 'user-2', content: 'Hey! Did you get a chance to look at the latest designs I shared?', created_at: '10:30 AM', status: 'read' },
+        { id: '2', sender_id: DEMO_USER.id, content: 'Yes! They look amazing. I love the new color scheme.', created_at: '10:32 AM', status: 'read' },
+        { id: '3', sender_id: 'user-2', content: "Great! I've made some more updates. Let me know what you think.", created_at: '10:35 AM', status: 'read' },
+        { id: '4', sender_id: DEMO_USER.id, content: "Sure, send them over! I'm in the workspace now.", created_at: '10:36 AM', status: 'read' },
+        { id: '5', sender_id: 'user-2', content: "Perfect! I've just added them to the shared folder.", created_at: '10:38 AM', status: 'read' },
+      ],
+      'user-3': [
+        { id: '1', sender_id: 'user-3', content: 'Have you reviewed the pull request yet?', created_at: '9:15 AM', status: 'read' },
+        { id: '2', sender_id: DEMO_USER.id, content: 'Not yet, I\'ll take a look this morning.', created_at: '9:20 AM', status: 'read' },
+        { id: '3', sender_id: 'user-3', content: 'No rush, just wanted to make sure it\'s on your radar.', created_at: '9:22 AM', status: 'read' },
+      ],
+      'user-4': [
+        { id: '1', sender_id: DEMO_USER.id, content: 'Hey Charlie, are we still meeting at 3pm?', created_at: '1:00 PM', status: 'read' },
+        { id: '2', sender_id: 'user-4', content: 'Yes! Conference room B. I\'ll bring the project timeline.', created_at: '1:05 PM', status: 'read' },
+        { id: '3', sender_id: DEMO_USER.id, content: 'Sounds good, see you then.', created_at: '1:06 PM', status: 'read' },
+      ],
+      'user-5': [
+        { id: '1', sender_id: 'user-5', content: 'The client loved the presentation!', created_at: '11:00 AM', status: 'read' },
+        { id: '2', sender_id: DEMO_USER.id, content: 'That\'s awesome news! Great teamwork.', created_at: '11:05 AM', status: 'read' },
+        { id: '3', sender_id: 'user-5', content: 'They want to schedule a follow-up next week.', created_at: '11:08 AM', status: 'read' },
+        { id: '4', sender_id: DEMO_USER.id, content: 'I\'ll block some time on the calendar.', created_at: '11:10 AM', status: 'read' },
+      ],
+      'user-6': [
+        { id: '1', sender_id: 'user-6', content: 'Quick question about the API integration.', created_at: '2:30 PM', status: 'read' },
+        { id: '2', sender_id: DEMO_USER.id, content: 'Sure, what\'s up?', created_at: '2:32 PM', status: 'read' },
+        { id: '3', sender_id: 'user-6', content: 'Which authentication method should we use for the webhook endpoints?', created_at: '2:33 PM', status: 'read' },
+      ],
+    }
+
+    setMessages(demoConversations[contactId] || [])
   }, [selectedContact])
 
   // Auto-scroll to bottom

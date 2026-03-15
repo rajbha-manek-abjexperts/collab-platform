@@ -4,24 +4,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Plus, FolderOpen, Users, MoreHorizontal, Loader2 } from 'lucide-react'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
+import CreateWorkspaceDialog from '@/components/Dialogs/CreateWorkspaceDialog'
 
 export default function WorkspacesPage() {
-  const { workspaces, loading, error, refetch, createWorkspace } = useWorkspaces()
-  const [creating, setCreating] = useState(false)
-
-  const handleCreate = async () => {
-    const name = prompt('Workspace name:')
-    if (name?.trim()) {
-      try {
-        setCreating(true)
-        await createWorkspace(name.trim(), name.trim().toLowerCase().replace(/\s+/g, '-'))
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to create workspace')
-      } finally {
-        setCreating(false)
-      }
-    }
-  }
+  const { workspaces, loading, error, refetch } = useWorkspaces()
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
 
   return (
     <div>
@@ -34,15 +21,10 @@ export default function WorkspacesPage() {
           </p>
         </div>
         <button
-          onClick={handleCreate}
-          disabled={creating}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+          onClick={() => setShowCreateDialog(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
         >
-          {creating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
+          <Plus className="h-4 w-4" />
           New Workspace
         </button>
       </div>
@@ -70,7 +52,7 @@ export default function WorkspacesPage() {
             Create your first workspace to start collaborating.
           </p>
           <button
-            onClick={handleCreate}
+            onClick={() => setShowCreateDialog(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             <Plus className="h-4 w-4" />
@@ -108,6 +90,12 @@ export default function WorkspacesPage() {
           ))}
         </div>
       )}
+
+      <CreateWorkspaceDialog
+        isOpen={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        onSuccess={() => refetch()}
+      />
     </div>
   )
 }

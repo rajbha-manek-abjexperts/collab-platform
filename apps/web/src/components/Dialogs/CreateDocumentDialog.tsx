@@ -33,31 +33,18 @@ export default function CreateDocumentDialog({
     try {
       const token = localStorage.getItem('access_token')
       const wsId = workspaceId || 'default-workspace'
-      const res = await apiFetch(`/api/workspaces/${wsId}/documents`, {
+      const doc = await apiFetch(`/api/workspaces/${wsId}/documents`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ title })
       })
-
-      if (res.ok) {
-        const doc = await res.json()
-        onSuccess?.(doc)
-      } else {
-        // For demo, create mock
-        const mockDoc = {
-          id: 'doc-' + Date.now(),
-          title,
-          created_at: new Date().toISOString()
-        }
-        onSuccess?.(mockDoc)
-      }
+      onSuccess?.(doc)
       setTitle('')
       onClose()
     } catch (err) {
-      setError('Failed to create document')
+      setError(err instanceof Error ? err.message : 'Failed to create document')
     } finally {
       setLoading(false)
     }

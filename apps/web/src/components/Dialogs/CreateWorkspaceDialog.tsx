@@ -27,37 +27,19 @@ export default function CreateWorkspaceDialog({ isOpen, onClose, onSuccess }: Cr
 
     try {
       const token = localStorage.getItem('access_token')
-      const res = await apiFetch('/api/workspaces', {
+      const workspace = await apiFetch('/api/workspaces', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ name, description })
       })
-
-      if (res.ok) {
-        const workspace = await res.json()
-        onSuccess?.(workspace)
-        setName(''        setDescription('')
-        onClose()
-      } else {
-        const data = await res.json()
-        // For demo, create mock workspace
-        const mockWorkspace = {
-          id: 'workspace-' + Date.now(),
-          name,
-          slug: name.toLowerCase().replace(/\s+/g, '-'),
-          description,
-          created_at: new Date().toISOString()
-        }
-        onSuccess?.(mockWorkspace)
-        setName('')
-        setDescription('')
-        onClose()
-      }
+      onSuccess?.(workspace)
+      setName('')
+      setDescription('')
+      onClose()
     } catch (err) {
-      setError('Failed to create workspace')
+      setError(err instanceof Error ? err.message : 'Failed to create workspace')
     } finally {
       setLoading(false)
     }

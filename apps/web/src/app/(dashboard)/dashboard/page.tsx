@@ -241,12 +241,12 @@ export default function UserDashboardPage() {
                 <div
                   className={`h-10 w-10 rounded-lg bg-gradient-to-br ${WORKSPACE_COLORS[i % WORKSPACE_COLORS.length]} flex items-center justify-center text-white font-semibold text-sm shrink-0`}
                 >
-                  {ws.name[0]}
+                  {(ws?.name || "W")[0]}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{ws.name}</p>
+                  <p className="font-medium text-sm">{(ws?.name || "Workspace")}</p>
                   <p className="text-xs text-gray-400 dark:text-gray-500">
-                    {ws.slug}
+                    {(ws?.slug || "")}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 shrink-0">

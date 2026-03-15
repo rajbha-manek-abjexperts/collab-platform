@@ -110,10 +110,10 @@ export class AIService {
         try {
           const parsed = JSON.parse(data.choices[0].message.content);
           if (parsed.ids && Array.isArray(parsed.ids)) {
-            const idOrder = new Map(parsed.ids.map((id: string, i: number) => [id, i]));
+            const idOrder: Map<string, number> = new Map(parsed.ids.map((id: string, i: number) => [id, i]));
             const ranked = documents
               .filter(d => idOrder.has(d.id))
-              .sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
+              .sort((a, b) => (idOrder.get(a.id) || 0) - (idOrder.get(b.id) || 0));
             return ranked.length > 0 ? ranked : documents;
           }
         } catch {

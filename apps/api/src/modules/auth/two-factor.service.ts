@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { authenticator } from 'otplib'
+import * as OTPAuth from 'otplib'
 import * as QRCode from 'qrcode'
 
 @Injectable()
@@ -8,8 +8,12 @@ export class TwoFactorService {
 
   // Generate a new 2FA secret for a user
   generateSecret(userEmail: string): { secret: string; qrCode: string } {
-    const secret = authenticator.generateSecret()
-    const otpauthUrl = authenticator.keyuri(userEmail, this.issuer, secret)
+    const secret = OTPAuth.generateSecret()
+    const otpauthUrl = OTPAuth.generateURI({
+      secret,
+      issuer: this.issuer,
+      label: userEmail
+    })
     
     // Generate QR code as data URL
     const qrCode = QRCode.toDataURL(otpauthUrl)
@@ -18,8 +22,9 @@ export class TwoFactorService {
   }
 
   // Verify a TOTP code
-  verifyCode(secret: string, code: string): boolean {
-    return authenticator.verify({ token: code, secret })
+  async verifyCode(secret: string, code: string): Promise<boolean> {
+    const result = await OTPAuth.verify({ token: code, secret })
+    return result.valid
   }
 
   // Generate backup codes (for recovery)

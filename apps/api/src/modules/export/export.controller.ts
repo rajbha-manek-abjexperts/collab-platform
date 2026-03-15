@@ -1,5 +1,4 @@
-import { Controller, Get, Query, Res, Req } from '@nestjs/common'
-import { Response, Request } from 'express'
+import { Controller, Get, Query, Body } from '@nestjs/common'
 import { ExportService } from './export.service'
 
 @Controller('api/export')
@@ -8,7 +7,6 @@ export class ExportController {
 
   @Get('data')
   async exportData(
-    @Req() req: Request,
     @Query('format') format: string = 'json'
   ) {
     // Demo: use a fixed user ID for now

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { OutputData } from '@editorjs/editorjs'
+import { FileText, CheckCircle, AlertTriangle, Info, X } from 'lucide-react'
 
 interface DocumentViewerProps {
   content: string | OutputData
@@ -35,7 +36,6 @@ export default function DocumentViewer({ content }: DocumentViewerProps) {
       {data.blocks.map((block, index) => {
         switch (block.type) {
           case 'header':
-            const HeadingTag = `h${block.data.level || 2}` as keyof JSX.IntrinsicElements
             const HeadingComponent = {
               1: 'h1',
               2: 'h2', 
@@ -97,6 +97,41 @@ export default function DocumentViewer({ content }: DocumentViewerProps) {
               </ul>
             )
 
+          case 'nestedList':
+            const renderNestedItems = (items: any[], level: number = 0) => {
+              return items.map((item, i) => (
+                <div key={i} style={{ marginLeft: `${level * 20}px` }} className="mb-1">
+                  <span className="text-gray-700">{item.content}</span>
+                  {item.children && item.children.length > 0 && (
+                    <div>{renderNestedItems(item.children, level + 1)}</div>
+                  )}
+                </div>
+              ))
+            }
+            return (
+              <div key={index} className="mb-4 ml-4">
+                {block.data.items ? renderNestedItems(block.data.items) : null}
+              </div>
+            )
+
+          case 'checklist':
+            return (
+              <div key={index} className="mb-4 space-y-2">
+                {block.data.items?.map((item: any, i: number) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${
+                      item.checked ? 'bg-green-500 border-green-500' : 'border-gray-300'
+                    }`}>
+                      {item.checked && <CheckCircle className="w-3 h-3 text-white" />}
+                    </div>
+                    <span className={`text-gray-700 ${item.checked ? 'line-through text-gray-400' : ''}`}>
+                      {item.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )
+
           case 'code':
             return (
               <div key={index} className="mb-4">
@@ -114,6 +149,75 @@ export default function DocumentViewer({ content }: DocumentViewerProps) {
                   <cite className="block text-sm text-gray-500 mt-2">— {block.data.caption}</cite>
                 )}
               </blockquote>
+            )
+
+          case 'warning':
+            const warningStyles = {
+              info: 'bg-blue-50 border-blue-500 text-blue-700',
+              warning: 'bg-yellow-50 border-yellow-500 text-yellow-700',
+              success: 'bg-green-50 border-green-500 text-green-700'
+            }
+            const warningIcons = {
+              info: <Info className="w-5 h-5" />,
+              warning: <AlertTriangle className="w-5 h-5" />,
+              success: <CheckCircle className="w-5 h-5" />
+            }
+            const level = block.data.message || 'info'
+            return (
+              <div key={index} className={`mb-4 p-4 rounded-xl border-l-4 ${warningStyles[level as keyof typeof warningStyles] || warningStyles.info}`}>
+                <div className="flex items-start gap-3">
+                  <span className="flex-shrink-0 mt-0.5">
+                    {warningIcons[level as keyof typeof warningIcons] || warningIcons.info}
+                  </span>
+                  <div>
+                    {block.data.title && (
+                      <p className="font-semibold mb-1">{block.data.title}</p>
+                    )}
+                    <p className="text-gray-700">{block.data.message}</p>
+                  </div>
+                </div>
+              </div>
+            )
+
+          case 'delimiter':
+            return (
+              <hr key={index} className="my-8 border-gray-200" />
+            )
+
+          case 'embed':
+            return (
+              <div key={index} className="mb-4">
+                <iframe
+                  src={block.data.embed}
+                  className="w-full aspect-video rounded-xl"
+                  frameBorder="0"
+                  allowFullScreen
+                />
+                {block.data.caption && (
+                  <p className="text-center text-sm text-gray-500 mt-2">{block.data.caption}</p>
+                )}
+              </div>
+            )
+
+          case 'attaches':
+            return (
+              <div key={index} className="mb-4">
+                <a 
+                  href={block.data.file?.url}
+                  download={block.data.file?.name}
+                  className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                >
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{block.data.file?.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {block.data.file?.size ? `${Math.round(block.data.file.size / 1024)} KB` : ''}
+                    </p>
+                  </div>
+                </a>
+              </div>
             )
 
           case 'table':

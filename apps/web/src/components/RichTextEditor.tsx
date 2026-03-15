@@ -1,8 +1,37 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import type EditorJS from '@editorjs/editorjs'
-import type { OutputData } from '@editorjs/editorjs'
+import EditorJS, { EditorConfig, OutputData } from '@editorjs/editorjs'
+// @ts-ignore - Editor.js types
+import Header from '@editorjs/header'
+// @ts-ignore
+import List from '@editorjs/list'
+// @ts-ignore
+import Paragraph from '@editorjs/paragraph'
+// @ts-ignore
+import Code from '@editorjs/code'
+// @ts-ignore
+import Quote from '@editorjs/quote'
+// @ts-ignore
+import Table from '@editorjs/table'
+// @ts-ignore
+import Link from '@editorjs/link'
+// @ts-ignore
+import Marker from '@editorjs/marker'
+// @ts-ignore
+import InlineCode from '@editorjs/inline-code'
+// @ts-ignore
+import Checklist from '@editorjs/checklist'
+// @ts-ignore
+import Delimiter from '@editorjs/delimiter'
+// @ts-ignore
+import Warning from '@editorjs/warning'
+// @ts-ignore
+import Embed from '@editorjs/embed'
+// @ts-ignore
+import Attaches from '@editorjs/attaches'
+// @ts-ignore
+import NestedList from '@editorjs/nested-list'
 
 interface RichTextEditorProps {
   initialData?: OutputData
@@ -11,119 +40,150 @@ interface RichTextEditorProps {
   readOnly?: boolean
 }
 
-export default function RichTextEditor({
-  initialData,
-  onChange,
+export default function RichTextEditor({ 
+  initialData, 
+  onChange, 
   placeholder = 'Start writing...',
-  readOnly = false,
+  readOnly = false
 }: RichTextEditorProps) {
   const ejInstance = useRef<EditorJS | null>(null)
-  const holderRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [isReady, setIsReady] = useState(false)
-  const isInitializing = useRef(false)
 
-  const initEditor = useCallback(async () => {
-    if (isInitializing.current || ejInstance.current) return
-    if (!holderRef.current) return
-    isInitializing.current = true
+  const initEditor = useCallback(() => {
+    if (!containerRef.current || ejInstance.current) return
 
-    // Dynamic imports to avoid SSR issues with Editor.js
-    const [
-      { default: EditorJSClass },
-      { default: Header },
-      { default: List },
-      { default: Paragraph },
-      { default: Code },
-      { default: Quote },
-      { default: Table },
-      { default: LinkTool },
-      { default: Marker },
-      { default: InlineCode },
-    ] = await Promise.all([
-      import('@editorjs/editorjs'),
-      import('@editorjs/header'),
-      import('@editorjs/list'),
-      import('@editorjs/paragraph'),
-      import('@editorjs/code'),
-      import('@editorjs/quote'),
-      import('@editorjs/table'),
-      import('@editorjs/link'),
-      import('@editorjs/marker'),
-      import('@editorjs/inline-code'),
-    ])
-
-    const editor = new EditorJSClass({
-      holder: holderRef.current!,
+    const editorConfig: EditorConfig = {
+      holder: containerRef.current,
       readOnly,
       placeholder,
       data: initialData || { time: Date.now(), blocks: [] },
-      onChange: async (api) => {
-        const data = await api.saver.save()
-        onChange?.(data)
+      onChange: async () => {
+        if (ejInstance.current) {
+          try {
+            const data = await ejInstance.current.save()
+            onChange?.(data)
+          } catch (error) {
+            console.error('Error saving editor data:', error)
+          }
+        }
       },
       tools: {
         header: {
-          class: Header as never,
+          class: Header,
           config: {
             placeholder: 'Enter a heading',
             levels: [1, 2, 3, 4],
-            defaultLevel: 2,
-          },
+            defaultLevel: 2
+          }
         },
         list: {
-          class: List as never,
+          class: List,
           inlineToolbar: true,
           config: {
-            defaultStyle: 'unordered',
-          },
+            defaultStyle: 'unordered'
+          }
+        },
+        nestedList: {
+          class: NestedList,
+          inlineToolbar: true
         },
         paragraph: {
-          class: Paragraph as never,
-          inlineToolbar: true,
+          class: Paragraph,
+          inlineToolbar: true
+        },
+        checklist: {
+          class: Checklist,
+          inlineToolbar: true
         },
         code: {
-          class: Code as never,
+          class: Code,
+          inlineToolbar: false
         },
         quote: {
-          class: Quote as never,
+          class: Quote,
           inlineToolbar: true,
           config: {
             quotePlaceholder: 'Enter a quote',
-            captionPlaceholder: "Quote's author",
-          },
+            captionPlaceholder: "Quote's author"
+          }
         },
         table: {
-          class: Table as never,
+          class: Table,
           inlineToolbar: true,
           config: {
             rows: 2,
             cols: 3,
-            withHeadings: true,
-          },
+            withHeadings: true
+          }
         },
-        linkTool: {
-          class: LinkTool as never,
+        link: {
+          class: Link,
+          inlineToolbar: true
         },
         marker: {
-          class: Marker as never,
+          class: Marker,
+          inlineToolbar: true
         },
         inlineCode: {
-          class: InlineCode as never,
+          class: InlineCode,
+          inlineToolbar: true
         },
-      },
-    })
+        delimiter: {
+          class: Delimiter
+        },
+        warning: {
+          class: Warning,
+          config: {
+            placeholder: 'Enter a warning...',
+            defaultLevel: 'info'
+          }
+        },
+        embed: {
+          class: Embed,
+          config: {
+            services: {
+              youtube: true,
+              twitter: true,
+              facebook: true,
+              instagram: true,
+              vimeo: true,
+              imgur: true
+            }
+          }
+        },
+        attaches: {
+          class: Attaches,
+          config: {
+            uploader: {
+              async uploadByFile(file: File) {
+                // Demo: create object URL
+                return {
+                  success: 1,
+                  file: {
+                    url: URL.createObjectURL(file),
+                    name: file.name,
+                    size: file.size
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
 
-    await editor.isReady
-    ejInstance.current = editor
-    setIsReady(true)
-    isInitializing.current = false
+    ejInstance.current = new EditorJS(editorConfig)
+    ejInstance.current.isReady.then(() => {
+      setIsReady(true)
+    })
   }, [initialData, onChange, placeholder, readOnly])
 
   useEffect(() => {
     initEditor()
 
     return () => {
-      if (ejInstance.current && ejInstance.current.destroy) {
+      if (ejInstance.current) {
         ejInstance.current.destroy()
         ejInstance.current = null
       }
@@ -131,28 +191,20 @@ export default function RichTextEditor({
   }, [initEditor])
 
   return (
-    <div className="rich-text-editor h-full flex flex-col relative">
-      <div
-        ref={holderRef}
-        className="flex-1 overflow-auto prose prose-sm dark:prose-invert max-w-none px-8 py-6"
+    <div className="rich-text-editor">
+      <div 
+        ref={containerRef} 
+        className="prose max-w-none min-h-[400px] bg-white rounded-xl"
       />
-      {!isReady && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-950/80">
-          <div className="text-sm text-gray-400">Loading editor...</div>
-        </div>
-      )}
       <style jsx global>{`
+        .codex-editor__redactor {
+          padding-bottom: 100px !important;
+        }
         .ce-block__content {
           max-width: 100%;
         }
         .ce-toolbar__content {
           max-width: 100%;
-        }
-        .codex-editor__redactor {
-          padding-bottom: 100px !important;
-        }
-        .ce-toolbar__actions {
-          right: 0;
         }
         .ce-header {
           font-weight: 600;
@@ -166,6 +218,29 @@ export default function RichTextEditor({
         }
         .ce-quote__text {
           font-style: italic;
+        }
+        .ce-delimiter {
+          margin: 1.5em 0;
+        }
+        .ce-warning {
+          padding: 1rem;
+          border-radius: 0.5rem;
+          margin: 1em 0;
+        }
+        .ce-warning--info {
+          background-color: #eff6ff;
+          border-left: 4px solid #3b82f6;
+        }
+        .ce-warning--warning {
+          background-color: #fef3c7;
+          border-left: 4px solid #f59e0b;
+        }
+        .ce-warning--success {
+          background-color: #d1fae5;
+          border-left: 4px solid #10b981;
+        }
+        .ce-embed {
+          margin: 1em 0;
         }
       `}</style>
     </div>

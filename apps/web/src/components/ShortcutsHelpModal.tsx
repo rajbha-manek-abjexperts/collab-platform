@@ -1,168 +1,178 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { X, Search, Command, ArrowUp } from 'lucide-react'
-import { defaultShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { useState, useMemo, useEffect } from 'react'
+import { X, Search, Keyboard } from 'lucide-react'
+import {
+  shortcuts as allShortcuts,
+  categoryLabels,
+  formatShortcutKeys,
+  type ShortcutCategory,
+  type ShortcutDefinition,
+} from '@/lib/keyboardShortcuts'
 
 interface ShortcutsHelpModalProps {
   isOpen: boolean
   onClose: () => void
 }
 
+const categoryOrder: ShortcutCategory[] = ['navigation', 'editing', 'formatting', 'actions']
+
 export default function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpModalProps) {
   const [search, setSearch] = useState('')
 
+  // Reset search when modal opens
+  useEffect(() => {
+    if (isOpen) setSearch('')
+  }, [isOpen])
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [isOpen, onClose])
+
   const filteredShortcuts = useMemo(() => {
-    if (!search) return defaultShortcuts
-    return defaultShortcuts.filter(s => 
-      s.description.toLowerCase().includes(search.toLowerCase())
+    if (!search) return allShortcuts
+    const q = search.toLowerCase()
+    return allShortcuts.filter(
+      s => s.description.toLowerCase().includes(q) || s.category.includes(q)
     )
   }, [search])
 
-  const grouped = useMemo(() => {
-    const groups = {
-      navigation: defaultShortcuts.filter(s => s.category === 'navigation'),
-      editing: defaultShortcuts.filter(s => s.category === 'editing'),
-      formatting: defaultShortcuts.filter(s => s.category === 'formatting'),
-      actions: defaultShortcuts.filter(s => s.category === 'actions'),
+  const groupedByCategory = useMemo(() => {
+    const map = new Map<ShortcutCategory, ShortcutDefinition[]>()
+    for (const s of filteredShortcuts) {
+      const list = map.get(s.category) ?? []
+      list.push(s)
+      map.set(s.category, list)
     }
-    return search ? { all: filteredShortcuts } : groups
-  }, [filteredShortcuts, search])
+    return map
+  }, [filteredShortcuts])
 
   if (!isOpen) return null
 
-  const renderKey = (key: string) => {
-    if (key === 'Control' || key === 'Meta' || key === 'Shift' || key === 'Alt') {
-      return (
-        <kbd className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg font-mono">
-          {key === 'Meta' ? '⌘' : key}
-        </kbd>
-      )
-    }
-    return (
-      <kbd className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg font-mono min-w-[24px] text-center">
-        {key}
-      </kbd>
-    )
-  }
-
-  const renderShortcut = (shortcut: typeof defaultShortcuts[0]) => {
-    const keys: React.ReactNode[] = []
-    
-    if (shortcut.ctrl) keys.push(renderKey('Control'))
-    if (shortcut.meta) keys.push(renderKey('Meta'))
-    if (shortcut.shift) keys.push(renderKey('Shift'))
-    if (shortcut.alt) keys.push(renderKey('Alt'))
-    keys.push(renderKey(shortcut.key.toUpperCase()))
-
-    return (
-      <div key={shortcut.description} className="flex items-center justify-between py-2">
-        <span className="text-gray-600">{shortcut.description}</span>
-        <div className="flex items-center gap-1">
-          {keys}
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" role="dialog" aria-modal="true">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-lg mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700/50">
         {/* Header */}
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold text-gray-900">Keyboard Shortcuts</h2>
+        <div className="px-5 pt-5 pb-4 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25">
+                <Keyboard className="w-4.5 h-4.5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Keyboard Shortcuts
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Navigate faster with shortcuts
+                </p>
+              </div>
+            </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
             </button>
           </div>
-          
+
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search shortcuts..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 dark:focus:border-blue-400 transition-shadow"
               autoFocus
             />
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-4 max-h-96 overflow-y-auto">
-          {search ? (
-            <div className="space-y-1">
-              {filteredShortcuts.length === 0 ? (
-                <p className="text-center text-gray-400 py-8">No shortcuts found</p>
-              ) : (
-                filteredShortcuts.map(renderShortcut)
-              )}
+        <div className="px-5 py-4 max-h-[400px] overflow-y-auto">
+          {filteredShortcuts.length === 0 ? (
+            <div className="py-10 text-center">
+              <p className="text-sm text-gray-400 dark:text-gray-500">
+                No shortcuts match &ldquo;{search}&rdquo;
+              </p>
             </div>
           ) : (
-            <div className="space-y-6">
-              {/* Navigation */}
-              <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Navigation
-                </h3>
-                <div className="space-y-1">
-                  {grouped.navigation.map(renderShortcut)}
-                </div>
-              </div>
-
-              {/* Editing */}
-              <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Editing
-                </h3>
-                <div className="space-y-1">
-                  {grouped.editing.map(renderShortcut)}
-                </div>
-              </div>
-
-              {/* Formatting */}
-              <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Formatting
-                </h3>
-                <div className="space-y-1">
-                  {grouped.formatting.map(renderShortcut)}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Actions
-                </h3>
-                <div className="space-y-1">
-                  {grouped.actions.map(renderShortcut)}
-                </div>
-              </div>
+            <div className="space-y-5">
+              {categoryOrder
+                .filter(cat => groupedByCategory.has(cat))
+                .map(category => (
+                  <div key={category}>
+                    <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
+                      {categoryLabels[category]}
+                    </h3>
+                    <div className="space-y-0.5">
+                      {groupedByCategory.get(category)!.map(shortcut => (
+                        <ShortcutRow key={shortcut.id} shortcut={shortcut} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-gray-100 bg-gray-50">
-          <p className="text-xs text-gray-400 text-center">
-            Press <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-gray-600">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-gray-600">/</kbd> anytime to show this help
+        <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+            Press{' '}
+            <KeyCap>⌘</KeyCap>
+            {' '}+{' '}
+            <KeyCap>/</KeyCap>
+            {' '}anytime to toggle this panel
           </p>
         </div>
       </div>
     </div>
+  )
+}
+
+function ShortcutRow({ shortcut }: { shortcut: ShortcutDefinition }) {
+  const keys = formatShortcutKeys(shortcut)
+
+  return (
+    <div className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+      <span className="text-sm text-gray-700 dark:text-gray-300">
+        {shortcut.description}
+      </span>
+      <div className="flex items-center gap-1 shrink-0 ml-4">
+        {keys.map((key, i) => (
+          <span key={i} className="flex items-center gap-1">
+            {i > 0 && <span className="text-gray-300 dark:text-gray-600 text-xs">+</span>}
+            <KeyCap>{key}</KeyCap>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function KeyCap({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700/80 border border-gray-200 dark:border-gray-600 rounded-md shadow-[0_1px_0_1px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_0_1px_rgba(0,0,0,0.2)] font-mono">
+      {children}
+    </kbd>
   )
 }

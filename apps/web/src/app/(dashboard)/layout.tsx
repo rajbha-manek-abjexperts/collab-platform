@@ -4,12 +4,16 @@ import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import CommandPalette from '@/components/CommandPalette'
 import GlobalSearch from '@/components/GlobalSearch'
+import ShortcutsHelpModal from '@/components/ShortcutsHelpModal'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const { showHelp, setShowHelp } = useKeyboardShortcuts([])
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -21,6 +25,7 @@ export default function DashboardLayout({
       </div>
       <CommandPalette />
       <GlobalSearch />
+      <ShortcutsHelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   )
 }

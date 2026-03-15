@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
-import { Save, Loader2, Sparkles } from 'lucide-react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { Save, Loader2, Sparkles, Keyboard } from 'lucide-react'
 import type { OutputData } from '@editorjs/editorjs'
 import type { DocumentContent } from '@/types/document'
 import RichTextEditor from './RichTextEditor'
 import AISummarizer from './AISummarizer'
+import { getModifierSymbol } from '@/lib/keyboardShortcuts'
 
 interface DocumentEditorProps {
   documentId?: string

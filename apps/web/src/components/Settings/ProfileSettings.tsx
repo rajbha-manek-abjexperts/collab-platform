@@ -3,17 +3,18 @@
 import { useState } from 'react'
 import { Camera, Loader2, Check } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { authFetch } from '@/lib/api'
 
 export default function ProfileSettings() {
-  const { user, updateProfile } = useAuth()
+  const { user } = useAuth()
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [form, setForm] = useState({
-    full_name: user?.user_metadata?.full_name || '',
+    full_name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : '',
     email: user?.email || '',
-    bio: user?.user_metadata?.bio || '',
-    job_title: user?.user_metadata?.job_title || '',
-    phone: user?.user_metadata?.phone || '',
+    bio: '',
+    job_title: '',
+    phone: '',
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -25,13 +26,14 @@ export default function ProfileSettings() {
     e.preventDefault()
     setSaving(true)
     try {
-      await updateProfile.mutateAsync({
-        data: {
+      await authFetch('/api/auth/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({
           full_name: form.full_name,
           bio: form.bio,
           job_title: form.job_title,
           phone: form.phone,
-        },
+        }),
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)

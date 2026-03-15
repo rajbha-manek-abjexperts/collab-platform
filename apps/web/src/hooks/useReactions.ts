@@ -9,7 +9,7 @@ export interface Reaction {
   created_at: string
 }
 
-function getHeaders() {
+function getHeaders(): Record<string, string> {
   const token = getAuthToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }

@@ -13,6 +13,55 @@ export class NotificationsService {
     return this.supabaseService.getClient();
   }
 
+  // ---- Notification CRUD ----
+
+  async getNotifications(userId: string) {
+    const { data, error } = await this.db
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw new NotFoundException(error.message);
+    return data;
+  }
+
+  async markAsRead(userId: string, notificationId: string) {
+    const { data, error } = await this.db
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw new NotFoundException(error.message);
+    return data;
+  }
+
+  async markAllAsRead(userId: string) {
+    const { error } = await this.db
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    if (error) throw new NotFoundException(error.message);
+    return { success: true };
+  }
+
+  async deleteNotification(userId: string, notificationId: string) {
+    const { error } = await this.db
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId)
+      .eq('user_id', userId);
+
+    if (error) throw new NotFoundException(error.message);
+    return { success: true };
+  }
+
   // ---- Notification Preferences ----
 
   async getPreferences(userId: string) {

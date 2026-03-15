@@ -1,144 +1,92 @@
-import { getClient, unwrap } from '@/lib/api'
+import { authFetch } from '@/lib/api'
 import type {
   Document,
-  DocumentInsert,
-  DocumentUpdate,
-  DocumentWithVersions,
-  CommentInsert,
-  CommentUpdate,
-  CommentWithUser,
-  VersionInsert,
+  Comment,
   Version,
-} from '@collab/shared'
+} from '@collab-platform/shared'
+
+// Local type aliases for insert/update patterns
+type DocumentInsert = Omit<Document, 'id' | 'created_at' | 'updated_at'>
+type DocumentUpdate = Partial<Pick<Document, 'title' | 'content' | 'type'>> & { is_archived?: boolean }
+interface DocumentWithVersions extends Document {
+  versions?: Version[]
+}
+type CommentInsert = Omit<Comment, 'id' | 'created_at' | 'updated_at'>
+type CommentUpdate = Partial<Pick<Comment, 'content' | 'resolved'>>
+interface CommentWithUser extends Comment {
+  user?: { id: string; email: string; full_name: string | null; avatar_url: string | null }
+}
+type VersionInsert = Omit<Version, 'id' | 'created_at'>
 
 // ---- Documents ----
 
 export async function listDocuments(workspaceId: string): Promise<Document[]> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('documents')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .eq('is_archived', false)
-    .order('updated_at', { ascending: false })
-  return unwrap(response)
+  return authFetch<Document[]>(`/api/workspaces/${workspaceId}/documents`)
 }
 
-export async function getDocument(id: string): Promise<DocumentWithVersions> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('documents')
-    .select(`
-      *,
-      versions(*)
-    `)
-    .eq('id', id)
-    .order('version_number', { referencedTable: 'versions', ascending: false })
-    .single()
-  return unwrap(response) as unknown as DocumentWithVersions
+export async function getDocument(workspaceId: string, id: string): Promise<DocumentWithVersions> {
+  return authFetch<DocumentWithVersions>(`/api/workspaces/${workspaceId}/documents/${id}`)
 }
 
-export async function createDocument(doc: DocumentInsert): Promise<Document> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('documents')
-    .insert(doc)
-    .select()
-    .single()
-  return unwrap(response)
+export async function createDocument(workspaceId: string, doc: Omit<DocumentInsert, 'workspace_id'>): Promise<Document> {
+  return authFetch<Document>(`/api/workspaces/${workspaceId}/documents`, {
+    method: 'POST',
+    body: JSON.stringify(doc),
+  })
 }
 
-export async function updateDocument(id: string, updates: DocumentUpdate): Promise<Document> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('documents')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
-  return unwrap(response)
+export async function updateDocument(workspaceId: string, id: string, updates: DocumentUpdate): Promise<Document> {
+  return authFetch<Document>(`/api/workspaces/${workspaceId}/documents/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
 }
 
-export async function archiveDocument(id: string): Promise<Document> {
-  return updateDocument(id, { is_archived: true })
+export async function archiveDocument(workspaceId: string, id: string): Promise<Document> {
+  return updateDocument(workspaceId, id, { is_archived: true })
 }
 
-export async function deleteDocument(id: string): Promise<void> {
-  const supabase = getClient()
-  const response = await supabase.from('documents').delete().eq('id', id)
-  unwrap(response)
+export async function deleteDocument(workspaceId: string, id: string): Promise<void> {
+  await authFetch(`/api/workspaces/${workspaceId}/documents/${id}`, {
+    method: 'DELETE',
+  })
 }
 
 // ---- Document Comments ----
 
 export async function listDocumentComments(documentId: string): Promise<CommentWithUser[]> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('comments')
-    .select(`
-      *,
-      user:user_id(id, email, full_name, avatar_url, created_at, updated_at),
-      reactions(*)
-    `)
-    .eq('document_id', documentId)
-    .is('parent_id', null)
-    .order('created_at', { ascending: true })
-  return unwrap(response) as unknown as CommentWithUser[]
+  return authFetch<CommentWithUser[]>(`/api/documents/${documentId}/comments`)
 }
 
-export async function createComment(comment: CommentInsert): Promise<CommentWithUser> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('comments')
-    .insert(comment)
-    .select(`
-      *,
-      user:user_id(id, email, full_name, avatar_url, created_at, updated_at),
-      reactions(*)
-    `)
-    .single()
-  return unwrap(response) as unknown as CommentWithUser
+export async function createComment(documentId: string, comment: Omit<CommentInsert, 'document_id'>): Promise<CommentWithUser> {
+  return authFetch<CommentWithUser>(`/api/documents/${documentId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(comment),
+  })
 }
 
 export async function updateComment(id: string, updates: CommentUpdate): Promise<CommentWithUser> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('comments')
-    .update(updates)
-    .eq('id', id)
-    .select(`
-      *,
-      user:user_id(id, email, full_name, avatar_url, created_at, updated_at),
-      reactions(*)
-    `)
-    .single()
-  return unwrap(response) as unknown as CommentWithUser
+  return authFetch<CommentWithUser>(`/api/comments/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
 }
 
 export async function deleteComment(id: string): Promise<void> {
-  const supabase = getClient()
-  const response = await supabase.from('comments').delete().eq('id', id)
-  unwrap(response)
+  await authFetch(`/api/comments/${id}`, {
+    method: 'DELETE',
+  })
 }
 
 // ---- Document Versions ----
 
-export async function createDocumentVersion(version: VersionInsert): Promise<Version> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('versions')
-    .insert(version)
-    .select()
-    .single()
-  return unwrap(response)
+export async function createDocumentVersion(documentId: string, version: Omit<VersionInsert, 'document_id'>): Promise<Version> {
+  return authFetch<Version>(`/api/documents/${documentId}/versions`, {
+    method: 'POST',
+    body: JSON.stringify(version),
+  })
 }
 
 export async function listDocumentVersions(documentId: string): Promise<Version[]> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('versions')
-    .select('*')
-    .eq('document_id', documentId)
-    .order('version_number', { ascending: false })
-  return unwrap(response)
+  return authFetch<Version[]>(`/api/documents/${documentId}/versions`)
 }

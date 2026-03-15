@@ -1,18 +1,29 @@
 'use client'
 
-import { useComments } from '@/hooks/useComments'
+import { useReactions } from '@/hooks/useReactions'
 
-export function Reactions({ commentId }: { commentId: string }) {
-  const { addReaction, reactions } = useReactionsForComment(commentId)
-  
-  const emojis = ['👍', '❤️', '😂', '😮', '😢', '🎉']
+interface ReactionsProps {
+  commentId: string
+  currentUserId?: string
+  onUpdate?: () => void
+}
+
+const EMOJI_OPTIONS = ['👍', '❤️', '😂', '😮', '😢', '🎉']
+
+export function Reactions({ commentId, onUpdate }: ReactionsProps) {
+  const { toggleReaction } = useReactions()
+
+  const handleReaction = async (emoji: string) => {
+    await toggleReaction(commentId, emoji)
+    onUpdate?.()
+  }
 
   return (
     <div className="flex gap-1">
-      {emojis.map((emoji) => (
+      {EMOJI_OPTIONS.map((emoji) => (
         <button
           key={emoji}
-          onClick={() => addReaction(emoji)}
+          onClick={() => handleReaction(emoji)}
           className="hover:bg-gray-100 rounded px-2 py-1 text-sm"
         >
           {emoji}
@@ -20,16 +31,4 @@ export function Reactions({ commentId }: { commentId: string }) {
       ))}
     </div>
   )
-}
-
-function useReactionsForComment(commentId: string) {
-  // Simplified - would use actual hook in production
-  const addReaction = async (emoji: string) => {
-    console.log('Add reaction:', emoji, 'to comment:', commentId)
-  }
-  
-  return {
-    reactions: [],
-    addReaction,
-  }
 }

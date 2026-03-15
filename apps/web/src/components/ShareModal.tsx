@@ -13,7 +13,7 @@ import {
   Loader2,
   Globe,
 } from 'lucide-react'
-import { getClient, unwrap } from '@/lib/api'
+import { authFetch } from '@/lib/api'
 
 interface SharedLink {
   id: string
@@ -62,13 +62,9 @@ export default function ShareModal({
   async function fetchLinks() {
     setLoading(true)
     try {
-      /* Using API instead of Supabase client */ 
-      /* Skip for now */ const data = null
-        .from('shared_links')
-        .select('id, slug, resource_type, resource_id, password_protected, expires_at, max_views, view_count, created_at')
-        .eq('resource_type', resourceType)
-        .eq('resource_id', resourceId)
-        .order('created_at', { ascending: false })
+      const data = await authFetch<SharedLink[]>(
+        `/api/sharing?resourceType=${resourceType}&resourceId=${resourceId}`
+      )
       setLinks(data || [])
     } catch {
       // silently handle
@@ -90,9 +86,9 @@ export default function ShareModal({
       }
 
       const slug = generateSlug()
-      const { data: link } = await supabase
-        .from('shared_links')
-        .insert({
+      const link = await authFetch<SharedLink>('/api/sharing', {
+        method: 'POST',
+        body: JSON.stringify({
           resource_type: resourceType,
           resource_id: resourceId,
           slug,
@@ -100,9 +96,8 @@ export default function ShareModal({
           password_hash: usePassword && password ? hashPassword(password) : null,
           expires_at: expiresAt || null,
           max_views: maxViews ? parseInt(maxViews, 10) : null,
-        })
-        .select()
-        .single()
+        }),
+      })
 
       if (link) {
         setLinks((prev) => [link, ...prev])
@@ -120,8 +115,7 @@ export default function ShareModal({
 
   async function deleteLink(id: string) {
     try {
-      /* Using API instead of Supabase client */ 
-      await supabase.from('shared_links').delete().eq('id', id)
+      await authFetch(`/api/sharing/${id}`, { method: 'DELETE' })
       setLinks((prev) => prev.filter((l) => l.id !== id))
     } catch {
       // silently handle

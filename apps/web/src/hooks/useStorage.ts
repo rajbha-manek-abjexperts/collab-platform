@@ -1,11 +1,7 @@
-'use client'
+import { useState, useEffect, useCallback } from 'react'
+import { apiFetch, API_URL, getAuthToken } from '../lib/api'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { createClient } from '@/lib/supabase'
-
-const FILES_KEY = ['files'] as const
-
-interface FileAttachment {
+export interface FileAttachment {
   id: string
   workspace_id: string
   user_id: string
@@ -21,95 +17,88 @@ interface FileAttachment {
   url?: string
 }
 
+function getHeaders(): Record<string, string> {
+  const token = getAuthToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 export function useStorage(workspaceId: string | undefined) {
-  const supabase = createClient()
-  const queryClient = useQueryClient()
+  const [files, setFiles] = useState<FileAttachment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const list = useQuery({
-    queryKey: [...FILES_KEY, workspaceId],
-    queryFn: async (): Promise<FileAttachment[]> => {
-      const { data, error } = await supabase
-        .from('file_attachments')
-        .select('*')
-        .eq('workspace_id', workspaceId!)
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      return data
-    },
-    enabled: !!workspaceId,
-  })
+  const fetchFiles = useCallback(async () => {
+    if (!workspaceId) {
+      setFiles([])
+      setLoading(false)
+      return
+    }
+    try {
+      setLoading(true)
+      const data = await apiFetch<FileAttachment[]>(`/api/workspaces/${workspaceId}/files`, {
+        headers: getHeaders(),
+      })
+      setFiles(data)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch files')
+      setFiles([])
+    } finally {
+      setLoading(false)
+    }
+  }, [workspaceId])
 
-  const upload = useMutation({
-    mutationFn: async ({
-      file,
-      documentId,
-      whiteboardId,
-    }: {
-      file: File
-      documentId?: string
-      whiteboardId?: string
-    }): Promise<FileAttachment> => {
-      const storagePath = `${workspaceId}/${Date.now()}-${file.name}`
+  useEffect(() => {
+    fetchFiles()
+  }, [fetchFiles])
 
-      const { error: uploadError } = await supabase.storage
-        .from('workspace-files')
-        .upload(storagePath, file, {
-          contentType: file.type,
-          upsert: false,
-        })
-      if (uploadError) throw uploadError
+  const uploadFile = useCallback(async (
+    file: File,
+    documentId?: string,
+    whiteboardId?: string,
+  ): Promise<FileAttachment> => {
+    const formData = new FormData()
+    formData.append('file', file)
 
-      const { data: urlData } = supabase.storage
-        .from('workspace-files')
-        .getPublicUrl(storagePath)
+    const params = new URLSearchParams()
+    if (documentId) params.set('documentId', documentId)
+    if (whiteboardId) params.set('whiteboardId', whiteboardId)
+    const qs = params.toString()
 
-      const { data, error } = await supabase
-        .from('file_attachments')
-        .insert({
-          workspace_id: workspaceId!,
-          user_id: (await supabase.auth.getUser()).data.user!.id,
-          document_id: documentId || null,
-          whiteboard_id: whiteboardId || null,
-          storage_path: storagePath,
-          file_name: file.name,
-          file_size: file.size,
-          mime_type: file.type,
-        })
-        .select()
-        .single()
-      if (error) throw error
+    const token = getAuthToken()
+    const response = await fetch(
+      `${API_URL}/api/workspaces/${workspaceId}/files${qs ? `?${qs}` : ''}`,
+      {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      },
+    )
 
-      return { ...data, url: urlData.publicUrl }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...FILES_KEY, workspaceId] })
-    },
-  })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: 'Upload failed' }))
+      throw new Error(err.message || `Upload Error: ${response.status}`)
+    }
 
-  const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { data: attachment, error: findError } = await supabase
-        .from('file_attachments')
-        .select('storage_path')
-        .eq('id', id)
-        .single()
-      if (findError) throw findError
+    const attachment = await response.json()
+    setFiles(prev => [attachment, ...prev])
+    return attachment
+  }, [workspaceId])
 
-      const { error: storageError } = await supabase.storage
-        .from('workspace-files')
-        .remove([attachment.storage_path])
-      if (storageError) throw storageError
+  const deleteFile = useCallback(async (id: string) => {
+    await apiFetch(`/api/workspaces/${workspaceId}/files/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    })
+    setFiles(prev => prev.filter(f => f.id !== id))
+  }, [workspaceId])
 
-      const { error } = await supabase
-        .from('file_attachments')
-        .delete()
-        .eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...FILES_KEY, workspaceId] })
-    },
-  })
-
-  return { list, upload, remove }
+  return {
+    files,
+    loading,
+    error,
+    refetch: fetchFiles,
+    uploadFile,
+    deleteFile,
+  }
 }

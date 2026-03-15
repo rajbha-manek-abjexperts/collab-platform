@@ -139,17 +139,10 @@ export function ActivityFeed({
   )
   const [filterOpen, setFilterOpen] = useState(false)
 
-  if (workspaceId) {
-    useRealtime<ActivityItem & Record<string, unknown>>({
-      channel: `activity-${workspaceId}`,
-      table: 'activities',
-      filter: `workspace_id=eq.${workspaceId}`,
-      event: 'INSERT',
-      onInsert: (newActivity) => {
-        setActivities((prev) => [newActivity, ...prev].slice(0, maxItems))
-      },
-    })
-  }
+  useRealtime({
+    channel: `activity-${workspaceId}`,
+    enabled: !!workspaceId,
+  })
 
   const filtered =
     activeFilter === 'all'

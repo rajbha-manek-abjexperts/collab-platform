@@ -1,9 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase'
 import { getSocket } from '@/lib/socket'
-import type { RealtimeChannel } from '@supabase/supabase-js'
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -70,64 +68,64 @@ export function usePresence({
   const [viewingUsers, setViewingUsers] = useState<Map<string, { entityId: string; entityType: string }>>(new Map())
   const [followState, setFollowState] = useState<FollowState>({ targetUserId: null, followers: [] })
 
-  const channelRef = useRef<RealtimeChannel | null>(null)
   const typingTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const cleanupRef = useRef<(() => void)[]>([])
 
-  // ─── Supabase Presence (status tracking) ─────────────────────
+  // ─── WebSocket Presence (status tracking via WS gateway) ─────
 
   const updateStatus = useCallback(
     (status: PresenceUser['status']) => {
-      if (!channelRef.current || !user) return
-      channelRef.current.track({
-        user_id: user.id,
-        email: user.email,
-        name: user.name,
-        avatar_url: user.avatar_url,
-        online_at: new Date().toISOString(),
-        status,
-      })
+      if (!room || !user) return
+      const socket = getSocket()
+      socket.sendPresenceUpdate(room, status)
     },
-    [user],
+    [room, user],
   )
 
   useEffect(() => {
-    if (!enabled || !user) return
+    if (!enabled || !user || !room) return
 
-    const supabase = createClient()
+    const socket = getSocket()
+    const unsubs: (() => void)[] = []
 
-    const channel = supabase.channel(channelName, {
-      config: { presence: { key: user.id } },
-    })
+    // Send initial presence
+    socket.sendPresenceUpdate(room, 'online')
 
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState<PresenceUser>()
-        const users: PresenceUser[] = []
+    // Request current presence state
+    socket.requestPresence(room)
 
-        for (const presences of Object.values(state)) {
-          if (presences.length > 0) {
-            users.push(presences[0] as unknown as PresenceUser)
-          }
-        }
-
+    // Listen for presence updates from other users
+    unsubs.push(
+      socket.on('presence:sync', (data) => {
+        const users = data as PresenceUser[]
         setPresentUsers(users)
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({
-            user_id: user.id,
-            email: user.email,
-            name: user.name,
-            avatar_url: user.avatar_url,
-            online_at: new Date().toISOString(),
-            status: 'online' as const,
-          })
-        }
-      })
+      }),
+    )
 
-    channelRef.current = channel
+    unsubs.push(
+      socket.on('presence:update', (data) => {
+        const presenceData = data as PresenceUser
+        if (presenceData.user_id === user.id) return
+        setPresentUsers((prev) => {
+          const existing = prev.findIndex((u) => u.user_id === presenceData.user_id)
+          if (existing >= 0) {
+            const next = [...prev]
+            next[existing] = presenceData
+            return next
+          }
+          return [...prev, presenceData]
+        })
+      }),
+    )
 
+    unsubs.push(
+      socket.on('presence:leave', (data) => {
+        const { userId } = data as { userId: string }
+        setPresentUsers((prev) => prev.filter((u) => u.user_id !== userId))
+      }),
+    )
+
+    // Handle visibility change
     const handleVisibilityChange = () => {
       if (document.hidden) {
         updateStatus('away')
@@ -138,11 +136,14 @@ export function usePresence({
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
+    cleanupRef.current = unsubs
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      supabase.removeChannel(channel)
+      unsubs.forEach((unsub) => unsub())
+      cleanupRef.current = []
     }
-  }, [channelName, user?.id, enabled])
+  }, [channelName, user?.id, room, enabled])
 
   // ─── WebSocket Events (cursors, typing, viewing, follow) ─────
 
@@ -264,7 +265,6 @@ export function usePresence({
       socket.on('cursor:update', (data) => {
         const cursor = data as CursorData
         if (followState.targetUserId && cursor.userId === followState.targetUserId) {
-          // Emit a custom event for consumers to scroll/pan to the followed user's position
           window.dispatchEvent(
             new CustomEvent('presence:follow-cursor', { detail: cursor }),
           )
@@ -272,11 +272,8 @@ export function usePresence({
       }),
     )
 
-    cleanupRef.current = unsubs
-
     return () => {
       unsubs.forEach((unsub) => unsub())
-      cleanupRef.current = []
       typingTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout))
       typingTimeoutsRef.current.clear()
     }

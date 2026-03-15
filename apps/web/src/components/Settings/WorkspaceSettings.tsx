@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Loader2, Check, Users, Shield, Trash2 } from 'lucide-react'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
+import { authFetch } from '@/lib/api'
 import type { MemberRole } from '@/types/workspace'
 
 const roleLabels: Record<MemberRole, string> = {
@@ -20,14 +21,13 @@ const roleBadgeColors: Record<MemberRole, string> = {
 }
 
 export default function WorkspaceSettings() {
-  const { workspaces, update, remove } = useWorkspaces()
+  const { workspaces, deleteWorkspace } = useWorkspaces()
   const workspace = workspaces?.[0]
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [form, setForm] = useState({
     name: workspace?.name || '',
-    description: workspace?.description || '',
   })
   const [inviteEmail, setInviteEmail] = useState('')
 
@@ -41,7 +41,10 @@ export default function WorkspaceSettings() {
     if (!workspace) return
     setSaving(true)
     try {
-      await update.mutateAsync({ id: workspace.id, ...form })
+      await authFetch(`/api/workspaces/${workspace.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(form),
+      })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } finally {
@@ -77,18 +80,6 @@ export default function WorkspaceSettings() {
               onChange={handleChange}
               className="w-full max-w-md px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-shadow"
               placeholder="My Workspace"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Description</label>
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              rows={3}
-              className="w-full max-w-md px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-shadow resize-none"
-              placeholder="What is this workspace for?"
             />
           </div>
 

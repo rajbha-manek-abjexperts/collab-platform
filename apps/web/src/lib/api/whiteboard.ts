@@ -1,150 +1,143 @@
-import { getClient, unwrap } from '@/lib/api'
-import type {
-  WhiteboardSession,
-  WhiteboardSessionInsert,
-  WhiteboardSessionUpdate,
-  WhiteboardSessionWithVersions,
-  CommentInsert,
-  CommentUpdate,
-  CommentWithUser,
-  VersionInsert,
-  Version,
-} from '@collab/shared'
+import { authFetch } from '@/lib/api'
+
+export interface WhiteboardSession {
+  id: string
+  workspace_id: string
+  title: string
+  canvas_data: Record<string, unknown>
+  canvas_state?: Record<string, unknown>
+  created_by: string
+  is_archived: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface WhiteboardSessionWithVersions extends WhiteboardSession {
+  versions?: Version[]
+}
+
+export interface Version {
+  id: string
+  whiteboard_id?: string
+  snapshot: Record<string, unknown>
+  label?: string
+  created_by: string
+  created_at: string
+}
+
+export interface Comment {
+  id: string
+  document_id?: string
+  whiteboard_id?: string
+  user_id: string
+  content: string
+  position?: Record<string, unknown>
+  resolved?: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CommentWithUser extends Comment {
+  user?: { id: string; email: string; full_name: string | null; avatar_url: string | null }
+}
+
+type WhiteboardSessionUpdate = Partial<Pick<WhiteboardSession, 'title' | 'canvas_data' | 'canvas_state'>> & {
+  is_archived?: boolean
+}
 
 // ---- Whiteboard Sessions ----
 
 export async function listWhiteboards(workspaceId: string): Promise<WhiteboardSession[]> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('whiteboard_sessions')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .eq('is_archived', false)
-    .order('updated_at', { ascending: false })
-  return unwrap(response)
+  return authFetch<WhiteboardSession[]>(`/api/workspaces/${workspaceId}/whiteboards`)
 }
 
-export async function getWhiteboard(id: string): Promise<WhiteboardSessionWithVersions> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('whiteboard_sessions')
-    .select(`
-      *,
-      versions(*)
-    `)
-    .eq('id', id)
-    .order('version_number', { referencedTable: 'versions', ascending: false })
-    .single()
-  return unwrap(response) as unknown as WhiteboardSessionWithVersions
+export async function getWhiteboard(
+  workspaceId: string,
+  id: string,
+): Promise<WhiteboardSessionWithVersions> {
+  return authFetch<WhiteboardSessionWithVersions>(
+    `/api/workspaces/${workspaceId}/whiteboards/${id}`,
+  )
 }
 
-export async function createWhiteboard(session: WhiteboardSessionInsert): Promise<WhiteboardSession> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('whiteboard_sessions')
-    .insert(session)
-    .select()
-    .single()
-  return unwrap(response)
+export async function createWhiteboard(
+  workspaceId: string,
+  session: { title: string; canvas_data?: Record<string, unknown> },
+): Promise<WhiteboardSession> {
+  return authFetch<WhiteboardSession>(`/api/workspaces/${workspaceId}/whiteboards`, {
+    method: 'POST',
+    body: JSON.stringify(session),
+  })
 }
 
 export async function updateWhiteboard(
+  workspaceId: string,
   id: string,
-  updates: WhiteboardSessionUpdate
+  updates: WhiteboardSessionUpdate,
 ): Promise<WhiteboardSession> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('whiteboard_sessions')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
-  return unwrap(response)
+  return authFetch<WhiteboardSession>(`/api/workspaces/${workspaceId}/whiteboards/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
 }
 
-export async function archiveWhiteboard(id: string): Promise<WhiteboardSession> {
-  return updateWhiteboard(id, { is_archived: true })
+export async function archiveWhiteboard(
+  workspaceId: string,
+  id: string,
+): Promise<WhiteboardSession> {
+  return updateWhiteboard(workspaceId, id, { is_archived: true })
 }
 
-export async function deleteWhiteboard(id: string): Promise<void> {
-  const supabase = getClient()
-  const response = await supabase.from('whiteboard_sessions').delete().eq('id', id)
-  unwrap(response)
+export async function deleteWhiteboard(workspaceId: string, id: string): Promise<void> {
+  await authFetch(`/api/workspaces/${workspaceId}/whiteboards/${id}`, {
+    method: 'DELETE',
+  })
 }
 
 // ---- Whiteboard Comments ----
 
 export async function listWhiteboardComments(whiteboardId: string): Promise<CommentWithUser[]> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('comments')
-    .select(`
-      *,
-      user:user_id(id, email, full_name, avatar_url, created_at, updated_at),
-      reactions(*)
-    `)
-    .eq('whiteboard_id', whiteboardId)
-    .is('parent_id', null)
-    .order('created_at', { ascending: true })
-  return unwrap(response) as unknown as CommentWithUser[]
+  return authFetch<CommentWithUser[]>(`/api/whiteboards/${whiteboardId}/comments`)
 }
 
-export async function createWhiteboardComment(comment: CommentInsert): Promise<CommentWithUser> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('comments')
-    .insert(comment)
-    .select(`
-      *,
-      user:user_id(id, email, full_name, avatar_url, created_at, updated_at),
-      reactions(*)
-    `)
-    .single()
-  return unwrap(response) as unknown as CommentWithUser
+export async function createWhiteboardComment(
+  whiteboardId: string,
+  comment: { content: string; position?: Record<string, unknown> },
+): Promise<CommentWithUser> {
+  return authFetch<CommentWithUser>(`/api/whiteboards/${whiteboardId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(comment),
+  })
 }
 
 export async function updateWhiteboardComment(
   id: string,
-  updates: CommentUpdate
+  updates: { content?: string; resolved?: boolean },
 ): Promise<CommentWithUser> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('comments')
-    .update(updates)
-    .eq('id', id)
-    .select(`
-      *,
-      user:user_id(id, email, full_name, avatar_url, created_at, updated_at),
-      reactions(*)
-    `)
-    .single()
-  return unwrap(response) as unknown as CommentWithUser
+  return authFetch<CommentWithUser>(`/api/comments/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
 }
 
 export async function deleteWhiteboardComment(id: string): Promise<void> {
-  const supabase = getClient()
-  const response = await supabase.from('comments').delete().eq('id', id)
-  unwrap(response)
+  await authFetch(`/api/comments/${id}`, {
+    method: 'DELETE',
+  })
 }
 
 // ---- Whiteboard Versions ----
 
-export async function createWhiteboardVersion(version: VersionInsert): Promise<Version> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('versions')
-    .insert(version)
-    .select()
-    .single()
-  return unwrap(response)
+export async function createWhiteboardVersion(
+  whiteboardId: string,
+  version: { snapshot: Record<string, unknown>; label?: string },
+): Promise<Version> {
+  return authFetch<Version>(`/api/whiteboards/${whiteboardId}/versions`, {
+    method: 'POST',
+    body: JSON.stringify(version),
+  })
 }
 
 export async function listWhiteboardVersions(whiteboardId: string): Promise<Version[]> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('versions')
-    .select('*')
-    .eq('whiteboard_id', whiteboardId)
-    .order('version_number', { ascending: false })
-  return unwrap(response)
+  return authFetch<Version[]>(`/api/whiteboards/${whiteboardId}/versions`)
 }

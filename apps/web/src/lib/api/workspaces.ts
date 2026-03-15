@@ -1,81 +1,55 @@
-import { getClient, unwrap } from '@/lib/api'
+import { authFetch } from '@/lib/api'
 import type {
   Workspace,
-  WorkspaceInsert,
-  WorkspaceUpdate,
-  WorkspaceWithMembers,
-  WorkspaceMemberInsert,
   WorkspaceRole,
   WorkspaceMember,
-} from '@collab/shared'
+} from '@collab-platform/shared'
+
+// Local type aliases
+type WorkspaceInsert = Omit<Workspace, 'id' | 'created_at' | 'updated_at'>
+type WorkspaceUpdate = Partial<Pick<Workspace, 'name' | 'slug' | 'description'>>
+interface WorkspaceWithMembers extends Workspace {
+  members?: WorkspaceMember[]
+}
+type WorkspaceMemberInsert = Omit<WorkspaceMember, 'id' | 'joined_at'>
 
 // ---- Workspaces ----
 
 export async function listWorkspaces(): Promise<Workspace[]> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('workspaces')
-    .select('*')
-    .order('created_at', { ascending: false })
-  return unwrap(response)
+  return authFetch<Workspace[]>('/api/workspaces')
 }
 
 export async function getWorkspace(id: string): Promise<WorkspaceWithMembers> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('workspaces')
-    .select(`
-      *,
-      members:workspace_members(
-        workspace_id,
-        user_id,
-        role,
-        joined_at,
-        user:user_id(id, email, full_name, avatar_url, created_at, updated_at)
-      )
-    `)
-    .eq('id', id)
-    .single()
-  return unwrap(response) as unknown as WorkspaceWithMembers
+  return authFetch<WorkspaceWithMembers>(`/api/workspaces/${id}`)
 }
 
 export async function createWorkspace(workspace: WorkspaceInsert): Promise<Workspace> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('workspaces')
-    .insert(workspace)
-    .select()
-    .single()
-  return unwrap(response)
+  return authFetch<Workspace>('/api/workspaces', {
+    method: 'POST',
+    body: JSON.stringify(workspace),
+  })
 }
 
 export async function updateWorkspace(id: string, updates: WorkspaceUpdate): Promise<Workspace> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('workspaces')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
-  return unwrap(response)
+  return authFetch<Workspace>(`/api/workspaces/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
 }
 
 export async function deleteWorkspace(id: string): Promise<void> {
-  const supabase = getClient()
-  const response = await supabase.from('workspaces').delete().eq('id', id)
-  unwrap(response)
+  await authFetch(`/api/workspaces/${id}`, {
+    method: 'DELETE',
+  })
 }
 
 // ---- Workspace Members ----
 
-export async function addWorkspaceMember(member: WorkspaceMemberInsert): Promise<WorkspaceMember> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('workspace_members')
-    .insert(member)
-    .select()
-    .single()
-  return unwrap(response)
+export async function addWorkspaceMember(workspaceId: string, member: Omit<WorkspaceMemberInsert, 'workspace_id'>): Promise<WorkspaceMember> {
+  return authFetch<WorkspaceMember>(`/api/workspaces/${workspaceId}/members`, {
+    method: 'POST',
+    body: JSON.stringify(member),
+  })
 }
 
 export async function updateMemberRole(
@@ -83,23 +57,13 @@ export async function updateMemberRole(
   userId: string,
   role: WorkspaceRole
 ): Promise<WorkspaceMember> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('workspace_members')
-    .update({ role })
-    .eq('workspace_id', workspaceId)
-    .eq('user_id', userId)
-    .select()
-    .single()
-  return unwrap(response)
+  // Remove and re-add with new role (no dedicated update endpoint)
+  await removeWorkspaceMember(workspaceId, userId)
+  return addWorkspaceMember(workspaceId, { user_id: userId, role })
 }
 
 export async function removeWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
-  const supabase = getClient()
-  const response = await supabase
-    .from('workspace_members')
-    .delete()
-    .eq('workspace_id', workspaceId)
-    .eq('user_id', userId)
-  unwrap(response)
+  await authFetch(`/api/workspaces/${workspaceId}/members/${userId}`, {
+    method: 'DELETE',
+  })
 }

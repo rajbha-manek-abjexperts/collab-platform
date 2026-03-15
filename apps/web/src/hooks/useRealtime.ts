@@ -1,73 +1,38 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase'
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
-type PostgresEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*'
-
-interface UseRealtimeOptions<T extends Record<string, unknown>> {
+interface UseRealtimeOptions {
   channel: string
-  table: string
-  schema?: string
-  filter?: string
-  event?: PostgresEvent
-  onInsert?: (payload: T) => void
-  onUpdate?: (payload: { old: T; new: T }) => void
-  onDelete?: (payload: T) => void
-  onChange?: (payload: RealtimePostgresChangesPayload<T>) => void
   enabled?: boolean
+  pollInterval?: number
+  onRefetch?: () => void
 }
 
-export function useRealtime<T extends Record<string, unknown>>({
-  channel: channelName,
-  table,
-  schema = 'public',
-  filter,
-  event = '*',
-  onInsert,
-  onUpdate,
-  onDelete,
-  onChange,
+/**
+ * Polling-based realtime hook.
+ * Replaces Supabase postgres_changes with periodic polling.
+ * The NestJS WebSocket handles cursors/presence; this handles data freshness.
+ */
+export function useRealtime({
+  channel,
   enabled = true,
-}: UseRealtimeOptions<T>) {
-  const channelRef = useRef<RealtimeChannel | null>(null)
+  pollInterval = 5000,
+  onRefetch,
+}: UseRealtimeOptions) {
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled || !onRefetch) return
 
-    const supabase = createClient()
-
-    const channel = supabase
-      .channel(channelName)
-      .on<T>(
-        'postgres_changes',
-        {
-          event,
-          schema,
-          table,
-          ...(filter ? { filter } : {}),
-        },
-        (payload) => {
-          onChange?.(payload)
-
-          if (payload.eventType === 'INSERT' && onInsert) {
-            onInsert(payload.new as T)
-          } else if (payload.eventType === 'UPDATE' && onUpdate) {
-            onUpdate({ old: payload.old as T, new: payload.new as T })
-          } else if (payload.eventType === 'DELETE' && onDelete) {
-            onDelete(payload.old as T)
-          }
-        },
-      )
-      .subscribe()
-
-    channelRef.current = channel
+    intervalRef.current = setInterval(onRefetch, pollInterval)
 
     return () => {
-      supabase.removeChannel(channel)
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
     }
-  }, [channelName, table, schema, filter, event, enabled])
+  }, [channel, enabled, pollInterval, onRefetch])
 
-  return channelRef
+  return intervalRef
 }

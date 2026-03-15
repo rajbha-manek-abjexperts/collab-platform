@@ -10,7 +10,7 @@ import type { MemberRole } from '@/types'
 const inviteSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   role: z.enum(['admin', 'member', 'viewer'], {
-    required_error: 'Please select a role',
+    error: 'Please select a role',
   }),
 })
 

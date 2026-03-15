@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { Lock, Eye, FileText, Layout, Loader2, AlertCircle } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+import { apiFetch } from '@/lib/api'
 
 interface SharedContent {
   resource_type: 'document' | 'whiteboard'
@@ -31,88 +31,27 @@ export default function SharedPage() {
     setLoading(true)
     setError(null)
     try {
-      const supabase = createClient()
+      const params = new URLSearchParams()
+      if (pw) params.set('password', pw)
+      const qs = params.toString()
 
-      // First fetch the shared link metadata
-      const { data: link, error: linkError } = await supabase
-        .from('shared_links')
-        .select('*')
-        .eq('slug', slug)
-        .single()
+      const data = await apiFetch<SharedContent>(
+        `/api/sharing/public/${slug}${qs ? `?${qs}` : ''}`,
+      )
 
-      if (linkError || !link) {
-        setError('This shared link was not found or has been removed.')
-        setLoading(false)
-        return
-      }
-
-      // Check expiration
-      if (link.expires_at && new Date(link.expires_at) < new Date()) {
-        setError('This shared link has expired.')
-        setLoading(false)
-        return
-      }
-
-      // Check max views
-      if (link.max_views && link.view_count >= link.max_views) {
-        setError('This shared link has reached its maximum view count.')
-        setLoading(false)
-        return
-      }
-
-      // Check password
-      if (link.password_protected && !pw) {
-        setNeedsPassword(true)
-        setLoading(false)
-        return
-      }
-
-      if (link.password_protected && pw) {
-        // Hash and compare client-side (simple hash matching)
-        let hash = 0
-        for (let i = 0; i < pw.length; i++) {
-          const char = pw.charCodeAt(i)
-          hash = (hash << 5) - hash + char
-          hash |= 0
-        }
-        if (hash.toString(16) !== link.password_hash) {
-          setError('Incorrect password.')
-          setNeedsPassword(true)
-          setLoading(false)
-          return
-        }
-      }
-
-      // Increment view count
-      await supabase
-        .from('shared_links')
-        .update({ view_count: link.view_count + 1 })
-        .eq('id', link.id)
-
-      // Fetch the resource
-      const table =
-        link.resource_type === 'document' ? 'documents' : 'whiteboard_sessions'
-      const { data: resource } = await supabase
-        .from(table)
-        .select('*')
-        .eq('id', link.resource_id)
-        .single()
-
-      if (!resource) {
-        setError('The shared content is no longer available.')
-        setLoading(false)
-        return
-      }
-
-      setContent({
-        resource_type: link.resource_type,
-        resource,
-        view_count: link.view_count + 1,
-        max_views: link.max_views,
-      })
+      setContent(data)
       setNeedsPassword(false)
-    } catch {
-      setError('Something went wrong. Please try again.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong'
+
+      if (message.toLowerCase().includes('password')) {
+        setNeedsPassword(true)
+        if (pw) {
+          setError('Incorrect password.')
+        }
+      } else {
+        setError(message)
+      }
     } finally {
       setLoading(false)
     }

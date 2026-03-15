@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Patch,
   Req,
   UseGuards,
@@ -13,6 +15,26 @@ import { NotificationsService } from './notifications.service';
 @UseGuards(SupabaseAuthGuard)
 export class NotificationsController {
   constructor(private notificationsService: NotificationsService) {}
+
+  @Get()
+  getNotifications(@Req() req) {
+    return this.notificationsService.getNotifications(req.user.id);
+  }
+
+  @Patch(':id/read')
+  markAsRead(@Req() req, @Param('id') id: string) {
+    return this.notificationsService.markAsRead(req.user.id, id);
+  }
+
+  @Patch('read-all')
+  markAllAsRead(@Req() req) {
+    return this.notificationsService.markAllAsRead(req.user.id);
+  }
+
+  @Delete(':id')
+  deleteNotification(@Req() req, @Param('id') id: string) {
+    return this.notificationsService.deleteNotification(req.user.id, id);
+  }
 
   @Get('preferences')
   getPreferences(@Req() req) {

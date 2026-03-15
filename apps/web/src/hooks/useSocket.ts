@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { getSocket, type CollabSocket } from '@/lib/socket'
-import { createClient } from '@/lib/supabase'
+import { getAuthToken } from '@/lib/api'
 
 interface UseSocketOptions {
   autoConnect?: boolean
@@ -28,10 +28,8 @@ export function useSocket(options: UseSocketOptions = {}) {
   const cleanupRef = useRef<(() => void)[]>([])
 
   const connect = useCallback(async () => {
-    const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
-
-    if (!session?.access_token) return
+    const token = getAuthToken()
+    if (!token) return
 
     const socket = getSocket()
     socketRef.current = socket
@@ -52,7 +50,7 @@ export function useSocket(options: UseSocketOptions = {}) {
 
     cleanupRef.current = unsubs
 
-    await socket.connect(session.access_token)
+    await socket.connect(token)
   }, [])
 
   useEffect(() => {

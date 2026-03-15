@@ -1,4 +1,4 @@
-import { getClient, unwrap } from '@/lib/api'
+import { authFetch } from '@/lib/api'
 
 export interface SearchResult {
   id: string
@@ -23,29 +23,18 @@ export async function searchResources(
   filters?: SearchFilters,
   limit = 20
 ): Promise<SearchResult[]> {
-  const supabase = getClient()
+  const params = new URLSearchParams({ q: query, limit: String(limit) })
 
-  let request = supabase
-    .from('search_index')
-    .select('*')
-    .textSearch('searchable_content', query, { type: 'websearch' })
-    .order('updated_at', { ascending: false })
-    .limit(limit)
+  if (filters?.type) params.set('type', filters.type)
+  if (filters?.workspaceId) params.set('workspaceId', filters.workspaceId)
+  if (filters?.dateFrom) params.set('dateFrom', filters.dateFrom)
+  if (filters?.dateTo) params.set('dateTo', filters.dateTo)
 
-  if (filters?.type) {
-    request = request.eq('resource_type', filters.type)
+  try {
+    return await authFetch<SearchResult[]>(`/api/search?${params.toString()}`)
+  } catch {
+    return []
   }
-  if (filters?.workspaceId) {
-    request = request.eq('workspace_id', filters.workspaceId)
-  }
-  if (filters?.dateFrom) {
-    request = request.gte('created_at', filters.dateFrom)
-  }
-  if (filters?.dateTo) {
-    request = request.lte('created_at', filters.dateTo)
-  }
-
-  return unwrap(await request)
 }
 
 const RECENT_SEARCHES_KEY = 'collab-recent-searches'

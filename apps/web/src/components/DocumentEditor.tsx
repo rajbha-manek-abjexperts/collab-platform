@@ -83,16 +83,18 @@ export default function DocumentEditor({
   )
 
   const initialEditorData = initialContent?.editorJs || undefined
+  const mod = typeof window !== 'undefined' ? getModifierSymbol() : 'Ctrl'
 
   return (
-    <div className="h-full flex flex-col bg-gray-50" onKeyDown={handleKeyDown}>
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-950" onKeyDown={handleKeyDown}>
       {/* Toolbar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
               onClick={handleSave}
               disabled={saving}
+              title={`Save (${mod}+S)`}
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium text-sm hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50"
             >
               {saving ? (
@@ -101,10 +103,13 @@ export default function DocumentEditor({
                 <Save className="w-4 h-4" />
               )}
               {saving ? 'Saving...' : 'Save'}
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 ml-1 text-[10px] text-white/60 font-mono">
+                {mod === '⌘' ? '⌘' : 'Ctrl+'}S
+              </kbd>
             </button>
 
             {lastSaved && (
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
                 Saved {lastSaved.toLocaleTimeString()}
               </span>
             )}
@@ -116,7 +121,7 @@ export default function DocumentEditor({
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all ${
                 showAI
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
               <Sparkles className="w-4 h-4" />
@@ -130,7 +135,7 @@ export default function DocumentEditor({
       <div className="flex-1 flex overflow-hidden">
         {/* Main Editor */}
         <div className="flex-1 overflow-auto p-8">
-          <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[600px] p-8">
+          <div className="max-w-4xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 min-h-[600px] p-8">
             <RichTextEditor
               initialData={initialEditorData}
               onChange={handleChange}
@@ -141,7 +146,7 @@ export default function DocumentEditor({
 
         {/* AI Panel */}
         {showAI && (
-          <div className="w-96 bg-white border-l border-gray-200 overflow-auto p-4">
+          <div className="w-96 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 overflow-auto p-4">
             <AISummarizer
               documentId={documentId}
               content={latestData.current ? editorJsToPlainText(latestData.current) : ''}

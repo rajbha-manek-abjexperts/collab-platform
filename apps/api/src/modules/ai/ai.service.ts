@@ -1,23 +1,31 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
 export class AIService {
-  private miniMaxApiKey = process.env.MINIMAX_API_KEY || '';
-  private miniMaxBaseUrl = 'https://api.minimax.chat/v1';
+  private readonly logger = new Logger(AIService.name);
+  
+  // Use OpenAI-compatible format
+  private get apiKey() {
+    return process.env.OPENAI_API_KEY || process.env.MINIMAX_API_KEY || '';
+  }
+  
+  private get baseUrl() {
+    return process.env.OPENAI_BASE_URL || 'https://api.minimax.io/v1';
+  }
 
-  // Document Summarization using MiniMax
+  // Document Summarization using MiniMax (OpenAI-compatible API)
   async summarizeDocument(content: string): Promise<{ summary: string; keyPoints: string[] }> {
     // If no API key, return mock data for demo
-    if (!this.miniMaxApiKey) {
+    if (!this.apiKey) {
       return this.getDemoSummary(content);
     }
 
     try {
-      const response = await fetch(`${this.miniMaxBaseUrl}/text/chatcompletion_v2`, {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.miniMaxApiKey}`
+          'Authorization': `Bearer ${this.apiKey}`
         },
         body: JSON.stringify({
           model: 'MiniMax-M2.5',
@@ -51,14 +59,14 @@ export class AIService {
       
       return this.getDemoSummary(content);
     } catch (error) {
-      console.error('MiniMax API error:', error);
+      this.logger.error('MiniMax API error:', error);
       return this.getDemoSummary(content);
     }
   }
 
   // Smart Search using MiniMax
   async smartSearch(query: string, documents: any[]): Promise<any[]> {
-    if (!this.miniMaxApiKey) {
+    if (!this.apiKey) {
       // Simple search for demo
       return documents.filter(doc => 
         doc.title?.toLowerCase().includes(query.toLowerCase()) ||
@@ -67,16 +75,16 @@ export class AIService {
     }
 
     try {
-      const response = await fetch(`${this.miniMaxBaseUrl}/text/chatcompletion_v2`, {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.miniMaxApiKey}`
+          'Authorization': `Bearer ${this.apiKey}`
         },
         body: JSON.stringify({
           model: 'MiniMax-M2.5',
           messages: [
-            { role: 'system', content: 'You are a search assistant. Given a query and documents, return the most relevant documents. Return as JSON array with document ids.' },
+            { role: 'system', content: 'You are a search assistant. Given a query and documents, return the most relevant documents.' },
             { role: 'user', content: `Query: ${query}\n\nDocuments: ${JSON.stringify(documents.map(d => ({ id: d.id, title: d.title, content: d.content_text?.substring(0, 500) })))}` }
           ]
         })
@@ -85,20 +93,19 @@ export class AIService {
       const data = await response.json();
       
       if (data.choices && data.choices[0]) {
-        // Return all documents for demo - in production, parse the AI response
         return documents;
       }
       
       return documents;
     } catch (error) {
-      console.error('MiniMax API error:', error);
+      this.logger.error('MiniMax API error:', error);
       return documents;
     }
   }
 
   // Grammar & Style Checker
   async checkGrammar(text: string): Promise<{ issues: string[]; suggestions: string[] }> {
-    if (!this.miniMaxApiKey) {
+    if (!this.apiKey) {
       return {
         issues: [],
         suggestions: ['This is a demo response. Add MiniMax API key for real grammar checking.']
@@ -106,11 +113,11 @@ export class AIService {
     }
 
     try {
-      const response = await fetch(`${this.miniMaxBaseUrl}/text/chatcompletion_v2`, {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.miniMaxApiKey}`
+          'Authorization': `Bearer ${this.apiKey}`
         },
         body: JSON.stringify({
           model: 'MiniMax-M2.5',
@@ -137,7 +144,7 @@ export class AIService {
       
       return { issues: [], suggestions: [] };
     } catch (error) {
-      console.error('MiniMax API error:', error);
+      this.logger.error('MiniMax API error:', error);
       return { issues: [], suggestions: [] };
     }
   }

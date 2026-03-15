@@ -319,7 +319,7 @@ let socketInstance: CollabSocket | null = null;
 
 export function getSocket(url?: string): CollabSocket {
   if (!socketInstance) {
-    const wsUrl = url || process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws';
+    const wsUrl = url || process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3002/ws';
     socketInstance = new CollabSocket(wsUrl);
   }
   return socketInstance;

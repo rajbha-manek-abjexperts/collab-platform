@@ -2,6 +2,7 @@
 
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
+import CommandPalette from '@/components/CommandPalette'
 
 export default function DashboardLayout({
   children,
@@ -17,6 +18,7 @@ export default function DashboardLayout({
           <div className="p-6 lg:p-8 max-w-7xl">{children}</div>
         </main>
       </div>
+      <CommandPalette />
     </div>
   )
 }

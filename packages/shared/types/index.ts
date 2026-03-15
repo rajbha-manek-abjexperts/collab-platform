@@ -193,3 +193,34 @@ export interface DocumentWithVersions extends Document {
 export interface WhiteboardSessionWithVersions extends WhiteboardSession {
   versions: Version[];
 }
+
+// ---- Notification Types ----
+
+export type NotificationType = 'welcome' | 'password_reset' | 'workspace_invite' | 'document_share' | 'comment_notification';
+
+export interface NotificationPreference {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  email_enabled: boolean;
+  created_at: string;
+}
+
+export interface EmailTemplate {
+  id: string;
+  type: NotificationType;
+  subject: string;
+  body_html: string;
+  created_at: string;
+}
+
+export interface EmailLogEntry {
+  id: string;
+  user_id: string | null;
+  template_type: NotificationType;
+  recipient_email: string;
+  subject: string;
+  status: 'pending' | 'sent' | 'failed';
+  error_message: string | null;
+  created_at: string;
+}

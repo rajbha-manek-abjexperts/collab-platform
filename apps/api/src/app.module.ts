@@ -11,6 +11,9 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { VersionsModule } from './modules/versions/versions.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { ReactionsModule } from './modules/reactions/reactions.module';
+import { StorageModule } from './modules/storage/storage.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -24,6 +27,9 @@ import { ReactionsModule } from './modules/reactions/reactions.module';
     VersionsModule,
     CommentsModule,
     ReactionsModule,
+    StorageModule,
+    NotificationsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

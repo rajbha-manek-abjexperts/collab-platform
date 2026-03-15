@@ -1,77 +1,110 @@
 'use client'
 
 import { useState } from 'react'
-import { Users } from 'lucide-react'
 import { useFollowMode } from '@/contexts/FollowModeContext'
 
-export default function UserAvatars() {
-  const { activeUsers, startFollowing, isFollowing, followedUser } = useFollowMode()
-  const [showTooltip, setShowTooltip] = useState(false)
+const avatarColorMap: Record<string, string> = {
+  '#3B82F6': 'bg-blue-600',
+  '#10B981': 'bg-emerald-600',
+  '#F59E0B': 'bg-amber-600',
+  '#8B5CF6': 'bg-purple-600',
+  '#EC4899': 'bg-pink-600',
+}
+
+const borderColorMap: Record<string, string> = {
+  '#3B82F6': 'ring-blue-400',
+  '#10B981': 'ring-emerald-400',
+  '#F59E0B': 'ring-amber-400',
+  '#8B5CF6': 'ring-purple-400',
+  '#EC4899': 'ring-pink-400',
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+interface UserAvatarsProps {
+  maxVisible?: number
+}
+
+export default function UserAvatars({ maxVisible = 4 }: UserAvatarsProps) {
+  const { activeUsers, followedUser, startFollowing, isFollowing } = useFollowMode()
+  const [hoveredUserId, setHoveredUserId] = useState<string | null>(null)
+
+  const visible = activeUsers.slice(0, maxVisible)
+  const overflow = activeUsers.length - maxVisible
 
   return (
-    <div className="relative">
-      <button
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-      >
-        <div className="flex -space-x-2">
-          {activeUsers.slice(0, 3).map((user, i) => (
+    <div className="flex items-center gap-2">
+      {/* Avatar stack */}
+      <div className="flex -space-x-2">
+        {visible.map((user) => {
+          const isFollowed = isFollowing && followedUser?.id === user.id
+          const bgColor = avatarColorMap[user.color] || 'bg-indigo-600'
+          const ringColor = borderColorMap[user.color] || 'ring-indigo-400'
+
+          return (
             <div
               key={user.id}
-              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white"
-              style={{ 
-                backgroundColor: user.color,
-                zIndex: activeUsers.length - i
-              }}
-              title={user.name}
+              className="group relative"
+              onMouseEnter={() => setHoveredUserId(user.id)}
+              onMouseLeave={() => setHoveredUserId(null)}
             >
-              {user.name.charAt(0)}
-            </div>
-          ))}
-          {activeUsers.length > 3 && (
-            <div className="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600 border-2 border-white">
-              +{activeUsers.length - 3}
-            </div>
-          )}
-        </div>
-        <Users className="w-4 h-4 text-gray-500" />
-      </button>
+              <button
+                onClick={() => startFollowing(user)}
+                className={`relative flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-medium text-white transition-all duration-200 hover:z-10 hover:scale-110 ${bgColor} ${
+                  isFollowed
+                    ? `border-indigo-500 ring-2 ${ringColor} ring-opacity-50`
+                    : 'border-white dark:border-gray-800'
+                }`}
+              >
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                ) : (
+                  getInitials(user.name)
+                )}
 
-      {showTooltip && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
-          <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase border-b border-gray-100 mb-1">
-            Active in this document
-          </div>
-          
-          {activeUsers.map(user => (
-            <button
-              key={user.id}
-              onClick={() => startFollowing(user)}
-              className={`w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 transition-colors ${
-                isFollowing && followedUser?.id === user.id ? 'bg-blue-50' : ''
-              }`}
-            >
-              <div className="relative">
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
-                  style={{ backgroundColor: user.color }}
-                >
-                  {user.name.charAt(0)}
+                {/* Online indicator */}
+                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-500 dark:border-gray-800" />
+              </button>
+
+              {/* Tooltip */}
+              {hoveredUserId === user.id && (
+                <div className="absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap">
+                  <div className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg">
+                    {user.name}
+                    {isFollowed && (
+                      <span className="ml-1.5 text-indigo-300">(Following)</span>
+                    )}
+                    <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                  </div>
                 </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                <p className="text-xs text-gray-500">Editing</p>
-              </div>
-              {isFollowing && followedUser?.id === user.id && (
-                <span className="text-xs text-blue-600 font-medium">Following</span>
               )}
-            </button>
-          ))}
-        </div>
-      )}
+            </div>
+          )
+        })}
+
+        {/* Overflow */}
+        {overflow > 0 && (
+          <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gray-200 text-xs font-medium text-gray-600 dark:border-gray-800 dark:bg-gray-700 dark:text-gray-300">
+            +{overflow}
+          </div>
+        )}
+      </div>
+
+      {/* Count */}
+      <span className="text-sm text-gray-500 dark:text-gray-400">
+        {activeUsers.length} online
+      </span>
     </div>
   )
 }

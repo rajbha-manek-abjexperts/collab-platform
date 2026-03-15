@@ -1,18 +1,16 @@
 'use client'
 
 import { use, useCallback } from 'react'
-import { ArrowLeft, Share2, Users } from 'lucide-react'
+import { ArrowLeft, Share2 } from 'lucide-react'
 import Link from 'next/link'
 import WhiteboardCanvas from '@/components/WhiteboardCanvas'
+import FollowModeButton from '@/components/FollowModeButton'
+import FollowingIndicator from '@/components/FollowingIndicator'
+import UserAvatars from '@/components/UserAvatars'
+import { FollowModeProvider } from '@/contexts/FollowModeContext'
 import type { WhiteboardState } from '@/types/whiteboard'
 
-export default function WhiteboardPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = use(params)
-
+function WhiteboardPageContent({ id }: { id: string }) {
   const handleSave = useCallback((state: WhiteboardState) => {
     // TODO: persist to API / Supabase
     console.log('Saving whiteboard', id, state)
@@ -20,6 +18,9 @@ export default function WhiteboardPage({
 
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-50 dark:bg-gray-950">
+      {/* Following indicator */}
+      <FollowingIndicator />
+
       {/* Top bar */}
       <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 z-10">
         <div className="flex items-center gap-3">
@@ -36,10 +37,11 @@ export default function WhiteboardPage({
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-            <Users className="h-4 w-4" />
-            <span>0 online</span>
-          </button>
+          <UserAvatars />
+          <FollowModeButton />
+
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-700" />
+
           <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
             <Share2 className="h-4 w-4" />
             Share
@@ -50,5 +52,19 @@ export default function WhiteboardPage({
       {/* Canvas component */}
       <WhiteboardCanvas id={id} onSave={handleSave} />
     </div>
+  )
+}
+
+export default function WhiteboardPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = use(params)
+
+  return (
+    <FollowModeProvider>
+      <WhiteboardPageContent id={id} />
+    </FollowModeProvider>
   )
 }

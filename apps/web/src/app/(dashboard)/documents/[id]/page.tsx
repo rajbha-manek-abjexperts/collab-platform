@@ -1,12 +1,15 @@
 'use client'
 
-import { use, useCallback, useState, useEffect, use } from 'react'
-import { ArrowLeft, Share2, Users, Clock, MoreHorizontal, Edit2, Eye, Loader2 } from 'lucide-react'
+import { use, useCallback, useState, useEffect } from 'react'
+import { ArrowLeft, Share2, Clock, MoreHorizontal, Edit2, Eye, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import DocumentEditor from '@/components/DocumentEditor'
 import DocumentViewer from '@/components/DocumentViewer'
-import { useDocuments } from '@/hooks/useDocuments'
+import FollowModeButton from '@/components/FollowModeButton'
+import FollowingIndicator from '@/components/FollowingIndicator'
+import UserAvatars from '@/components/UserAvatars'
+import { FollowModeProvider } from '@/contexts/FollowModeContext'
 import type { OutputData } from '@editorjs/editorjs'
 
 // Dynamic import for RichTextEditor to avoid SSR issues
@@ -19,12 +22,11 @@ const RichTextEditor = dynamic(() => import('@/components/RichTextEditor'), {
   )
 })
 
-export default function DocumentPage({
-  params,
+function DocumentPageContent({
+  id,
 }: {
-  params: Promise<{ id: string }>
+  id: string
 }) {
-  const { id } = use(params)
   const [title, setTitle] = useState('Untitled Document')
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [isEditing, setIsEditing] = useState(true)
@@ -46,7 +48,7 @@ export default function DocumentPage({
             'Content-Type': 'application/json'
           }
         })
-        
+
         if (response.ok) {
           const data = await response.json()
           if (data.content) {
@@ -92,7 +94,7 @@ export default function DocumentPage({
       setSaving(true)
       try {
         const token = localStorage.getItem('auth_token')
-        
+
         // Try to save to API first
         const response = await fetch(`http://localhost:3002/api/workspaces/${workspaceId}/documents/${id}`, {
           method: 'PATCH',
@@ -114,10 +116,10 @@ export default function DocumentPage({
           const contentJson = JSON.stringify(newContent)
           localStorage.setItem(`document_${id}`, contentJson)
         }
-        
+
         setContent(newContent)
         setLastSaved(new Date())
-        
+
         // Update title from first header
         const headerBlock = newContent.blocks?.find((b: any) => b.type === 'header')
         if (headerBlock?.data?.text) {
@@ -155,6 +157,9 @@ export default function DocumentPage({
 
   return (
     <div className="fixed inset-0 flex flex-col bg-white dark:bg-gray-950">
+      {/* Following indicator */}
+      <FollowingIndicator />
+
       {/* Top bar */}
       <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 z-10 shrink-0">
         <div className="flex items-center gap-3">
@@ -195,7 +200,7 @@ export default function DocumentPage({
           <button
             onClick={toggleMode}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${
-              isEditing 
+              isEditing
                 ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
             }`}
@@ -212,11 +217,14 @@ export default function DocumentPage({
               </>
             )}
           </button>
-          
-          <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-            <Users className="h-4 w-4" />
-            <span>0 online</span>
-          </button>
+
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-700" />
+
+          <UserAvatars />
+          <FollowModeButton />
+
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-700" />
+
           <button className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
             <MoreHorizontal className="h-4 w-4" />
           </button>
@@ -230,10 +238,10 @@ export default function DocumentPage({
       {/* Editor / Viewer */}
       <div className="flex-1 overflow-auto">
         {isEditing ? (
-          <DocumentEditor 
-            documentId={id} 
+          <DocumentEditor
+            documentId={id}
             initialContent={content}
-            onSave={handleSave} 
+            onSave={handleSave}
           />
         ) : (
           <div className="max-w-4xl mx-auto p-8">
@@ -243,7 +251,7 @@ export default function DocumentPage({
               ) : (
                 <div className="text-center py-20">
                   <p className="text-gray-400">No content yet. Click Edit to start writing.</p>
-                  <button 
+                  <button
                     onClick={() => setIsEditing(true)}
                     className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
@@ -256,5 +264,19 @@ export default function DocumentPage({
         )}
       </div>
     </div>
+  )
+}
+
+export default function DocumentPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = use(params)
+
+  return (
+    <FollowModeProvider>
+      <DocumentPageContent id={id} />
+    </FollowModeProvider>
   )
 }

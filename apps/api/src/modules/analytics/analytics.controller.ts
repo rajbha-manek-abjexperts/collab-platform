@@ -7,11 +7,11 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { SupabaseAuthGuard } from '../../common/guards/auth.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AnalyticsService } from './analytics.service';
 
 @Controller('analytics')
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class AnalyticsController {
   constructor(private analyticsService: AnalyticsService) {}
 

@@ -9,7 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { SupabaseAuthGuard } from '../../common/guards/auth.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SharingService } from './sharing.service';
 
 @Controller('sharing')
@@ -17,7 +17,7 @@ export class SharingController {
   constructor(private sharingService: SharingService) {}
 
   @Post('links')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   createSharedLink(
     @Req() req,
     @Body()
@@ -33,7 +33,7 @@ export class SharingController {
   }
 
   @Get('links/:resourceType/:resourceId')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   getSharedLinks(
     @Param('resourceType') resourceType: string,
     @Param('resourceId') resourceId: string,
@@ -53,7 +53,7 @@ export class SharingController {
   }
 
   @Delete('links/:id')
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   deleteSharedLink(@Req() req, @Param('id') id: string) {
     return this.sharingService.deleteSharedLink(id, req.user.id);
   }

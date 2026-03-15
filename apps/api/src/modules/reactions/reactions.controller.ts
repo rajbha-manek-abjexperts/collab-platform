@@ -7,11 +7,11 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { SupabaseAuthGuard } from '../../common/guards/auth.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ReactionsService } from './reactions.service';
 
 @Controller()
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class ReactionsController {
   constructor(private reactionsService: ReactionsService) {}
 

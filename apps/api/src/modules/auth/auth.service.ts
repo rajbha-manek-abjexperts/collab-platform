@@ -9,13 +9,13 @@ export class AuthService {
   // Map of emails to real UUIDs from database
   private emailToUuid: Map<string, string> = new Map([
     ['test@test.com', 'a98b8300-23d1-4560-92e7-5f5d6906aa9d'], // seller@test.com UUID
-    ['admin@test.com', 'b150774c-4f37-436f-bd17-0b9f28de036e'], // admin@test.com UUID
+    ['admin@test.com', '6a631182-2182-4eb3-8eca-310a582fa144'], // admin@test.com UUID
   ]);
 
   constructor(private jwtService: JwtService) {
     // Add demo users with real UUIDs
     const testUuid = this.emailToUuid.get('test@test.com') || 'a98b8300-23d1-4560-92e7-5f5d6906aa9d';
-    const adminUuid = this.emailToUuid.get('admin@test.com') || 'b150774c-4f37-436f-bd17-0b9f28de036e';
+    const adminUuid = this.emailToUuid.get('admin@test.com') || '6a631182-2182-4eb3-8eca-310a582fa144';
     
     this.users.set('test@test.com', { id: testUuid, email: 'test@test.com', password: 'password123' });
     this.users.set('admin@test.com', { id: adminUuid, email: 'admin@test.com', password: 'Test123456!' });

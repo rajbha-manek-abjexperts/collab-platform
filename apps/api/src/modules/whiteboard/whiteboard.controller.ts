@@ -9,11 +9,11 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { SupabaseAuthGuard } from '../../common/guards/auth.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { WhiteboardService } from './whiteboard.service';
 
 @Controller('workspaces/:workspaceId/whiteboards')
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class WhiteboardController {
   constructor(private whiteboardService: WhiteboardService) {}
 

@@ -1,68 +1,90 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { Save, Loader2, Sparkles, Bold, Italic, List, ListOrdered, Code, Quote, Link as LinkIcon } from 'lucide-react'
+import { useState, useCallback, useRef } from 'react'
+import { Save, Loader2, Sparkles } from 'lucide-react'
+import type { OutputData } from '@editorjs/editorjs'
+import type { DocumentContent } from '@/types/document'
 import RichTextEditor from './RichTextEditor'
 import AISummarizer from './AISummarizer'
-import type { OutputData } from '@editorjs/editorjs'
 
 interface DocumentEditorProps {
   documentId?: string
-  initialContent?: any
-  onSave?: (content: any) => void
+  initialContent?: DocumentContent | null
+  onSave?: (content: DocumentContent) => void
 }
 
-export default function DocumentEditor({ 
+function editorJsToPlainText(data: OutputData): string {
+  return data.blocks
+    .map((block) => {
+      switch (block.type) {
+        case 'paragraph':
+        case 'header':
+          return (block.data.text as string) || ''
+        case 'list':
+          return ((block.data.items as string[]) || []).join('\n')
+        case 'quote':
+          return (block.data.text as string) || ''
+        case 'code':
+          return (block.data.code as string) || ''
+        default:
+          return ''
+      }
+    })
+    .filter(Boolean)
+    .join('\n\n')
+}
+
+export default function DocumentEditor({
   documentId = 'new',
   initialContent,
-  onSave 
+  onSave,
 }: DocumentEditorProps) {
-  const [content, setContent] = useState<OutputData>(initialContent || { time: Date.now(), blocks: [] })
+  const latestData = useRef<OutputData | null>(null)
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [showAI, setShowAI] = useState(false)
 
-  const handleContentChange = useCallback((data: OutputData) => {
-    setContent(data)
+  const handleChange = useCallback((data: OutputData) => {
+    latestData.current = data
   }, [])
 
   const handleSave = useCallback(async () => {
+    if (!latestData.current) return
     setSaving(true)
     try {
-      // Save the JSON content
-      const contentJson = JSON.stringify(content)
-      
+      const plainText = editorJsToPlainText(latestData.current)
+      const content: DocumentContent = {
+        editorJs: latestData.current,
+        plainText,
+      }
+
       if (onSave) {
         onSave(content)
       } else {
-        // Default: save to localStorage for demo
-        localStorage.setItem(`document_${documentId}`, contentJson)
+        localStorage.setItem(`document_${documentId}`, JSON.stringify(content))
       }
-      
       setLastSaved(new Date())
     } catch (error) {
       console.error('Error saving document:', error)
     } finally {
       setSaving(false)
     }
-  }, [content, documentId, onSave])
+  }, [documentId, onSave])
 
-  // Convert Editor.js JSON to plain text for AI summarization
-  const getPlainText = useCallback(() => {
-    return content.blocks
-      .map((block: any) => {
-        if (block.type === 'paragraph') return block.data.text
-        if (block.type === 'header') return `Heading: ${block.data.text}`
-        if (block.type === 'list') return block.data.items?.join('\n') || ''
-        if (block.type === 'code') return block.data.code
-        if (block.type === 'quote') return block.data.text
-        return ''
-      })
-      .join('\n\n')
-  }, [content])
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault()
+        handleSave()
+      }
+    },
+    [handleSave]
+  )
+
+  const initialEditorData = initialContent?.editorJs || undefined
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gray-50" onKeyDown={handleKeyDown}>
       {/* Toolbar */}
       <div className="bg-white border-b border-gray-200 px-6 py-3">
         <div className="flex items-center justify-between">
@@ -79,7 +101,7 @@ export default function DocumentEditor({
               )}
               {saving ? 'Saving...' : 'Save'}
             </button>
-            
+
             {lastSaved && (
               <span className="text-sm text-gray-500">
                 Saved {lastSaved.toLocaleTimeString()}
@@ -91,8 +113,8 @@ export default function DocumentEditor({
             <button
               onClick={() => setShowAI(!showAI)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all ${
-                showAI 
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' 
+                showAI
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -109,8 +131,8 @@ export default function DocumentEditor({
         <div className="flex-1 overflow-auto p-8">
           <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[600px] p-8">
             <RichTextEditor
-              initialData={content}
-              onChange={handleContentChange}
+              initialData={initialEditorData}
+              onChange={handleChange}
               placeholder="Start writing your document..."
             />
           </div>
@@ -121,7 +143,7 @@ export default function DocumentEditor({
           <div className="w-96 bg-white border-l border-gray-200 overflow-auto p-4">
             <AISummarizer
               documentId={documentId}
-              content={getPlainText()}
+              content={latestData.current ? editorJsToPlainText(latestData.current) : ''}
             />
           </div>
         )}

@@ -32,7 +32,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
     try {
       if (mode === 'login') {
         await login(email, password)
-        router.push('/')
+        router.push('/dashboard')
         router.refresh()
       } else {
         const firstName = fullName.split(' ')[0] || ''

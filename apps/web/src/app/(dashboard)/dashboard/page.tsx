@@ -97,20 +97,20 @@ export default function UserDashboardPage() {
         setStats(data)
       } catch {
         // Fall back to workspace count from the hook
-        setStats((prev) => ({ ...prev, workspaces: workspaces.length }))
+        setStats((prev) => ({ ...prev, workspaces: (workspaces?.length || 0) }))
       } finally {
         setStatsLoading(false)
       }
     }
     fetchStats()
-  }, [workspaces.length])
+  }, [(workspaces?.length || 0)])
 
   const isLoading = workspacesLoading || statsLoading
 
   const statCards = [
     {
       label: 'Workspaces',
-      value: stats.workspaces || workspaces.length,
+      value: stats.workspaces || (workspaces?.length || 0),
       icon: FolderOpen,
       color: 'text-blue-600 dark:text-blue-400',
       bgColor: 'bg-blue-50 dark:bg-blue-900/20',
@@ -138,7 +138,7 @@ export default function UserDashboardPage() {
     },
   ]
 
-  const recentWorkspaces = workspaces.slice(0, 3)
+  const recentWorkspaces = (workspaces || []).slice(0, 3)
 
   return (
     <div>
@@ -227,7 +227,7 @@ export default function UserDashboardPage() {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
             </div>
-          ) : recentWorkspaces.length === 0 ? (
+          ) : (recentWorkspaces?.length || 0) === 0 ? (
             <div className="text-center py-8 text-gray-400 text-sm">
               No workspaces yet. Create one to get started.
             </div>

@@ -1,114 +1,136 @@
-'use client'
+import { useState, useEffect, useCallback } from 'react'
+import { apiFetch, getAuthToken } from '../lib/api'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { createClient } from '@/lib/supabase'
-import type {
-  WhiteboardSession,
-  WhiteboardSessionInsert,
-  WhiteboardSessionUpdate,
-  WhiteboardSessionWithVersions,
-} from '@collab/shared'
-
-const WHITEBOARDS_KEY = ['whiteboards'] as const
-
-export function useWhiteboards(workspaceId: string | undefined) {
-  const supabase = createClient()
-  const queryClient = useQueryClient()
-
-  const list = useQuery({
-    queryKey: [...WHITEBOARDS_KEY, workspaceId],
-    queryFn: async (): Promise<WhiteboardSession[]> => {
-      const { data, error } = await supabase
-        .from('whiteboard_sessions')
-        .select('*')
-        .eq('workspace_id', workspaceId!)
-        .eq('is_archived', false)
-        .order('updated_at', { ascending: false })
-      if (error) throw error
-      return data
-    },
-    enabled: !!workspaceId,
-  })
-
-  const create = useMutation({
-    mutationFn: async (session: WhiteboardSessionInsert): Promise<WhiteboardSession> => {
-      const { data, error } = await supabase
-        .from('whiteboard_sessions')
-        .insert(session)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...WHITEBOARDS_KEY, workspaceId] })
-    },
-  })
-
-  const update = useMutation({
-    mutationFn: async ({ id, ...updates }: WhiteboardSessionUpdate & { id: string }): Promise<WhiteboardSession> => {
-      const { data, error } = await supabase
-        .from('whiteboard_sessions')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [...WHITEBOARDS_KEY, workspaceId] })
-      queryClient.invalidateQueries({ queryKey: ['whiteboard', data.id] })
-    },
-  })
-
-  const archive = useMutation({
-    mutationFn: async (id: string): Promise<WhiteboardSession> => {
-      const { data, error } = await supabase
-        .from('whiteboard_sessions')
-        .update({ is_archived: true })
-        .eq('id', id)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...WHITEBOARDS_KEY, workspaceId] })
-    },
-  })
-
-  const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('whiteboard_sessions').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...WHITEBOARDS_KEY, workspaceId] })
-    },
-  })
-
-  return { list, create, update, archive, remove }
+export interface WhiteboardSession {
+  id: string
+  workspace_id: string
+  title: string
+  canvas_data: Record<string, unknown>
+  is_archived: boolean
+  created_by: string
+  created_at: string
+  updated_at: string
 }
 
-export function useWhiteboard(id: string | undefined) {
-  const supabase = createClient()
+function getHeaders() {
+  const token = getAuthToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
-  return useQuery({
-    queryKey: ['whiteboard', id],
-    queryFn: async (): Promise<WhiteboardSessionWithVersions> => {
-      const { data, error } = await supabase
-        .from('whiteboard_sessions')
-        .select(`
-          *,
-          versions(*)
-        `)
-        .eq('id', id!)
-        .order('version_number', { referencedTable: 'versions', ascending: false })
-        .single()
-      if (error) throw error
-      return data as unknown as WhiteboardSessionWithVersions
-    },
-    enabled: !!id,
-  })
+export function useWhiteboards(workspaceId: string | undefined) {
+  const [whiteboards, setWhiteboards] = useState<WhiteboardSession[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchWhiteboards = useCallback(async () => {
+    if (!workspaceId) {
+      setWhiteboards([])
+      setLoading(false)
+      return
+    }
+    try {
+      setLoading(true)
+      const data = await apiFetch<WhiteboardSession[]>(`/api/workspaces/${workspaceId}/whiteboards`, {
+        headers: getHeaders(),
+      })
+      setWhiteboards(data)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch whiteboards')
+      setWhiteboards([])
+    } finally {
+      setLoading(false)
+    }
+  }, [workspaceId])
+
+  useEffect(() => {
+    fetchWhiteboards()
+  }, [fetchWhiteboards])
+
+  const createWhiteboard = useCallback(async (title: string, canvas_data: Record<string, unknown> = {}) => {
+    const whiteboard = await apiFetch<WhiteboardSession>(`/api/workspaces/${workspaceId}/whiteboards`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ title, canvas_data }),
+    })
+    setWhiteboards(prev => [...prev, whiteboard])
+    return whiteboard
+  }, [workspaceId])
+
+  const updateWhiteboard = useCallback(async (id: string, updates: Partial<WhiteboardSession>) => {
+    const whiteboard = await apiFetch<WhiteboardSession>(`/api/workspaces/${workspaceId}/whiteboards/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    })
+    setWhiteboards(prev => prev.map(w => w.id === id ? whiteboard : w))
+    return whiteboard
+  }, [workspaceId])
+
+  const archiveWhiteboard = useCallback(async (id: string) => {
+    const whiteboard = await apiFetch<WhiteboardSession>(`/api/workspaces/${workspaceId}/whiteboards/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ is_archived: true }),
+    })
+    setWhiteboards(prev => prev.filter(w => w.id !== id))
+    return whiteboard
+  }, [workspaceId])
+
+  const deleteWhiteboard = useCallback(async (id: string) => {
+    await apiFetch(`/api/workspaces/${workspaceId}/whiteboards/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    })
+    setWhiteboards(prev => prev.filter(w => w.id !== id))
+  }, [workspaceId])
+
+  return {
+    whiteboards,
+    loading,
+    error,
+    refetch: fetchWhiteboards,
+    createWhiteboard,
+    updateWhiteboard,
+    archiveWhiteboard,
+    deleteWhiteboard,
+  }
+}
+
+export function useWhiteboard(workspaceId: string | undefined, id: string | undefined) {
+  const [whiteboard, setWhiteboard] = useState<WhiteboardSession | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchWhiteboard = useCallback(async () => {
+    if (!id || !workspaceId) {
+      setWhiteboard(null)
+      setLoading(false)
+      return
+    }
+    try {
+      setLoading(true)
+      const data = await apiFetch<WhiteboardSession>(`/api/workspaces/${workspaceId}/whiteboards/${id}`, {
+        headers: getHeaders(),
+      })
+      setWhiteboard(data)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch whiteboard')
+      setWhiteboard(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [workspaceId, id])
+
+  useEffect(() => {
+    fetchWhiteboard()
+  }, [fetchWhiteboard])
+
+  return {
+    whiteboard,
+    loading,
+    error,
+    refetch: fetchWhiteboard,
+  }
 }

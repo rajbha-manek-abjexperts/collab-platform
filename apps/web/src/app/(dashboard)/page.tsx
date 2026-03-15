@@ -1,5 +1,17 @@
+'use client'
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { FolderOpen, FileText, PenTool, Users } from 'lucide-react'
+import { FolderOpen, FileText, PenTool, Users, Loader2 } from 'lucide-react'
+import { useWorkspaces } from '@/hooks/useWorkspaces'
+import { apiFetch, getAuthToken } from '@/lib/api'
+
+interface UserStats {
+  workspaces: number
+  documents: number
+  whiteboards: number
+  members: number
+}
 
 const quickActions = [
   {
@@ -20,6 +32,45 @@ const quickActions = [
 ]
 
 export default function DashboardPage() {
+  const { workspaces, loading: workspacesLoading } = useWorkspaces()
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [stats, setStats] = useState<UserStats>({
+    workspaces: 0,
+    documents: 0,
+    whiteboards: 0,
+    members: 0,
+  })
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const token = getAuthToken()
+        if (!token) {
+          setStatsLoading(false)
+          return
+        }
+        const data = await apiFetch<UserStats>('/api/analytics/user/stats', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        setStats(data)
+      } catch {
+        setStats((prev) => ({ ...prev, workspaces: workspaces.length }))
+      } finally {
+        setStatsLoading(false)
+      }
+    }
+    fetchStats()
+  }, [workspaces.length])
+
+  const isLoading = workspacesLoading || statsLoading
+
+  const statCards = [
+    { label: 'Workspaces', value: stats.workspaces || workspaces.length, icon: FolderOpen },
+    { label: 'Documents', value: stats.documents, icon: FileText },
+    { label: 'Whiteboards', value: stats.whiteboards, icon: PenTool },
+    { label: 'Team Members', value: stats.members, icon: Users },
+  ]
+
   return (
     <div>
       {/* Header */}
@@ -32,12 +83,7 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Workspaces', value: '—', icon: FolderOpen },
-          { label: 'Documents', value: '—', icon: FileText },
-          { label: 'Whiteboards', value: '—', icon: PenTool },
-          { label: 'Team Members', value: '—', icon: Users },
-        ].map((stat) => {
+        {statCards.map((stat) => {
           const Icon = stat.icon
           return (
             <div
@@ -49,7 +95,13 @@ export default function DashboardPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {stat.label}
                   </p>
-                  <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {isLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                    ) : (
+                      stat.value
+                    )}
+                  </p>
                 </div>
                 <Icon className="h-8 w-8 text-gray-300 dark:text-gray-600" />
               </div>

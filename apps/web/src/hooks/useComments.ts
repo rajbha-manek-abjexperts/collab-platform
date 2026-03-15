@@ -1,150 +1,130 @@
-'use client'
+import { useState, useEffect, useCallback } from 'react'
+import { apiFetch, getAuthToken } from '../lib/api'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { createClient } from '@/lib/supabase'
-import type {
-  Comment,
-  CommentInsert,
-  CommentUpdate,
-  CommentWithUser,
-} from '@collab/shared'
-
-interface UseCommentsOptions {
-  documentId?: string
-  whiteboardId?: string
+export interface Comment {
+  id: string
+  document_id?: string
+  whiteboard_id?: string
+  user_id: string
+  content: string
+  parent_id?: string | null
+  is_resolved?: boolean
+  position?: Record<string, unknown>
+  reactions?: Reaction[]
+  created_at: string
+  updated_at?: string
 }
 
-function commentsQueryKey(opts: UseCommentsOptions) {
-  if (opts.documentId) return ['comments', 'document', opts.documentId] as const
-  if (opts.whiteboardId) return ['comments', 'whiteboard', opts.whiteboardId] as const
-  return ['comments'] as const
+export interface Reaction {
+  id: string
+  comment_id: string
+  user_id: string
+  emoji: string
+  created_at: string
 }
 
-export function useComments(opts: UseCommentsOptions) {
-  const supabase = createClient()
-  const queryClient = useQueryClient()
-  const queryKey = commentsQueryKey(opts)
+function getHeaders() {
+  const token = getAuthToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
-  const list = useQuery({
-    queryKey,
-    queryFn: async (): Promise<CommentWithUser[]> => {
-      let query = supabase
-        .from('comments')
-        .select(`
-          *,
-          user:user_id(id, email, full_name, avatar_url, created_at, updated_at),
-          reactions(*)
-        `)
-        .is('parent_id', null)
-        .order('created_at', { ascending: true })
+export function useComments(documentId?: string, whiteboardId?: string) {
+  const [comments, setComments] = useState<Comment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-      if (opts.documentId) {
-        query = query.eq('document_id', opts.documentId)
-      } else if (opts.whiteboardId) {
-        query = query.eq('whiteboard_id', opts.whiteboardId)
+  const fetchComments = useCallback(async () => {
+    if (!documentId && !whiteboardId) {
+      setComments([])
+      setLoading(false)
+      return
+    }
+    try {
+      setLoading(true)
+      const token = getAuthToken()
+      if (!token) {
+        setComments([])
+        return
       }
+      const endpoint = documentId
+        ? `/api/documents/${documentId}/comments`
+        : `/api/whiteboards/${whiteboardId}/comments`
+      const data = await apiFetch<Comment[]>(endpoint, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setComments(data)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch comments')
+      setComments([])
+    } finally {
+      setLoading(false)
+    }
+  }, [documentId, whiteboardId])
 
-      const { data, error } = await query
-      if (error) throw error
-      return data as unknown as CommentWithUser[]
-    },
-    enabled: !!(opts.documentId || opts.whiteboardId),
-  })
+  useEffect(() => {
+    fetchComments()
+  }, [fetchComments])
 
-  const create = useMutation({
-    mutationFn: async (comment: CommentInsert): Promise<Comment> => {
-      const { data, error } = await supabase
-        .from('comments')
-        .insert(comment)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey })
-    },
-  })
+  const addComment = useCallback(async (content: string, parentId?: string) => {
+    const endpoint = documentId
+      ? `/api/documents/${documentId}/comments`
+      : `/api/whiteboards/${whiteboardId}/comments`
+    const comment = await apiFetch<Comment>(endpoint, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ content, parent_id: parentId }),
+    })
+    setComments(prev => [...prev, comment])
+    return comment
+  }, [documentId, whiteboardId])
 
-  const update = useMutation({
-    mutationFn: async ({ id, ...updates }: CommentUpdate & { id: string }): Promise<Comment> => {
-      const { data, error } = await supabase
-        .from('comments')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey })
-    },
-  })
+  const updateComment = useCallback(async (id: string, content: string) => {
+    const updated = await apiFetch<Comment>(`/api/comments/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ content }),
+    })
+    setComments(prev => prev.map(c => c.id === id ? updated : c))
+    return updated
+  }, [])
 
-  const resolve = useMutation({
-    mutationFn: async (id: string): Promise<Comment> => {
-      const { data, error } = await supabase
-        .from('comments')
-        .update({ is_resolved: true })
-        .eq('id', id)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey })
-    },
-  })
+  const resolveComment = useCallback(async (id: string) => {
+    const updated = await apiFetch<Comment>(`/api/comments/${id}/resolve`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+    })
+    setComments(prev => prev.map(c => c.id === id ? updated : c))
+    return updated
+  }, [])
 
-  const unresolve = useMutation({
-    mutationFn: async (id: string): Promise<Comment> => {
-      const { data, error } = await supabase
-        .from('comments')
-        .update({ is_resolved: false })
-        .eq('id', id)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey })
-    },
-  })
+  const unresolveComment = useCallback(async (id: string) => {
+    const updated = await apiFetch<Comment>(`/api/comments/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ is_resolved: false }),
+    })
+    setComments(prev => prev.map(c => c.id === id ? updated : c))
+    return updated
+  }, [])
 
-  const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('comments').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey })
-    },
-  })
+  const deleteComment = useCallback(async (id: string) => {
+    await apiFetch(`/api/comments/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    })
+    setComments(prev => prev.filter(c => c.id !== id))
+  }, [])
 
-  return { list, create, update, resolve, unresolve, remove }
-}
-
-export function useCommentReplies(parentId: string | undefined) {
-  const supabase = createClient()
-
-  return useQuery({
-    queryKey: ['comments', 'replies', parentId],
-    queryFn: async (): Promise<CommentWithUser[]> => {
-      const { data, error } = await supabase
-        .from('comments')
-        .select(`
-          *,
-          user:user_id(id, email, full_name, avatar_url, created_at, updated_at),
-          reactions(*)
-        `)
-        .eq('parent_id', parentId!)
-        .order('created_at', { ascending: true })
-      if (error) throw error
-      return data as unknown as CommentWithUser[]
-    },
-    enabled: !!parentId,
-  })
+  return {
+    comments,
+    loading,
+    error,
+    refetch: fetchComments,
+    addComment,
+    updateComment,
+    resolveComment,
+    unresolveComment,
+    deleteComment,
+  }
 }

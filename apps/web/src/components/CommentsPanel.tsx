@@ -1,195 +1,111 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { MessageSquare, X, Send } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
-import { useRealtime } from '@/hooks/useRealtime'
-import { Comment } from './Comment'
+import { useState } from 'react'
+import { MessageSquare, Trash2, Edit2, Send } from 'lucide-react'
+import { useComments } from '@/hooks/useComments'
 
-interface Reaction {
-  id: string
-  comment_id: string
-  user_id: string
-  emoji: string
-  created_at: string
+interface CommentProps {
+  documentId?: string
+  whiteboardId?: string
 }
 
-interface CommentData {
-  id: string
-  user_id: string
-  content: string
-  document_id: string | null
-  whiteboard_id: string | null
-  parent_id: string | null
-  is_resolved: boolean
-  position: { x: number; y: number } | null
-  reactions: Reaction[]
-  created_at: string
-  updated_at: string
-}
-
-interface CommentsPanelProps {
-  entityType: 'document' | 'whiteboard'
-  entityId: string
-  currentUserId: string
-  isOpen: boolean
-  onClose: () => void
-}
-
-export function CommentsPanel({
-  entityType,
-  entityId,
-  currentUserId,
-  isOpen,
-  onClose,
-}: CommentsPanelProps) {
-  const [comments, setComments] = useState<CommentData[]>([])
+export default function CommentsPanel({ documentId, whiteboardId }: CommentProps) {
+  const { comments, loading, error, addComment, deleteComment } = useComments(documentId, whiteboardId)
   const [newComment, setNewComment] = useState('')
-  const [replyTo, setReplyTo] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
-  const fetchComments = useCallback(async () => {
-    const supabase = createClient()
-    const column = entityType === 'document' ? 'document_id' : 'whiteboard_id'
-
-    const { data } = await supabase
-      .from('comments')
-      .select('*, reactions(*)')
-      .eq(column, entityId)
-      .order('created_at', { ascending: true })
-
-    if (data) setComments(data as CommentData[])
-    setLoading(false)
-  }, [entityType, entityId])
-
-  useEffect(() => {
-    if (isOpen) fetchComments()
-  }, [isOpen, fetchComments])
-
-  useRealtime<CommentData & Record<string, unknown>>({
-    channel: `comments-${entityId}`,
-    table: 'comments',
-    filter: `${entityType === 'document' ? 'document_id' : 'whiteboard_id'}=eq.${entityId}`,
-    event: '*',
-    onChange: () => fetchComments(),
-    enabled: isOpen,
-  })
-
-  useRealtime<Reaction & Record<string, unknown>>({
-    channel: `reactions-${entityId}`,
-    table: 'reactions',
-    event: '*',
-    onChange: () => fetchComments(),
-    enabled: isOpen,
-  })
-
-  const handleSubmit = useCallback(async () => {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
     if (!newComment.trim()) return
-
-    const supabase = createClient()
-    const column = entityType === 'document' ? 'document_id' : 'whiteboard_id'
-
-    await supabase.from('comments').insert({
-      [column]: entityId,
-      user_id: currentUserId,
-      content: newComment.trim(),
-      parent_id: replyTo,
-    })
-
-    setNewComment('')
-    setReplyTo(null)
-  }, [newComment, entityType, entityId, currentUserId, replyTo])
-
-  const topLevel = comments.filter((c) => !c.parent_id)
-  const repliesMap = comments.reduce<Record<string, CommentData[]>>((acc, c) => {
-    if (c.parent_id) {
-      if (!acc[c.parent_id]) acc[c.parent_id] = []
-      acc[c.parent_id].push(c)
+    
+    setSubmitting(true)
+    try {
+      await addComment(newComment)
+      setNewComment('')
+    } finally {
+      setSubmitting(false)
     }
-    return acc
-  }, {})
+  }
 
-  if (!isOpen) return null
+  function formatTimeAgo(dateString: string): string {
+    const now = new Date()
+    const date = new Date(dateString)
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    if (seconds < 60) return 'just now'
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return `${minutes}m ago`
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return `${hours}h ago`
+    const days = Math.floor(hours / 24)
+    return `${days}d ago`
+  }
 
   return (
-    <div className="flex h-full w-80 flex-col border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-        <div className="flex items-center gap-2">
-          <MessageSquare size={16} className="text-gray-600 dark:text-gray-400" />
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-            Comments
-          </h3>
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-            {topLevel.length}
-          </span>
-        </div>
-        <button
-          onClick={onClose}
-          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-        >
-          <X size={16} />
-        </button>
+    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
+      <div className="p-4 border-b border-gray-200">
+        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+          <MessageSquare className="h-5 w-5" />
+          Comments
+        </h3>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
-          </div>
-        ) : topLevel.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-gray-500 dark:text-gray-400">
-            <MessageSquare size={24} className="mb-2" />
-            <p className="text-sm">No comments yet</p>
-            <p className="text-xs">Start the conversation</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {topLevel.map((comment) => (
-              <Comment
-                key={comment.id}
-                comment={comment}
-                currentUserId={currentUserId}
-                onReply={(parentId) => setReplyTo(parentId)}
-                onUpdate={fetchComments}
-                replies={repliesMap[comment.id] || []}
-              />
-            ))}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {loading && (
+          <div className="text-center py-8 text-gray-500">Loading comments...</div>
+        )}
+        
+        {error && (
+          <div className="text-center py-8 text-red-500">{error}</div>
+        )}
+        
+        {!loading && !error && comments.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No comments yet. Be the first to comment!
           </div>
         )}
+
+        {comments.map((comment) => (
+          <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 text-sm font-medium">U</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">User</p>
+                  <p className="text-xs text-gray-500">{formatTimeAgo(comment.created_at)}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => deleteComment(comment.id)}
+                className="text-gray-400 hover:text-red-500"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-gray-700">{comment.content}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="border-t border-gray-200 p-4 dark:border-gray-700">
-        {replyTo && (
-          <div className="mb-2 flex items-center justify-between rounded-md bg-blue-50 px-3 py-1.5 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
-            <span>Replying to comment</span>
-            <button onClick={() => setReplyTo(null)} className="ml-2">
-              <X size={12} />
-            </button>
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200">
         <div className="flex gap-2">
-          <textarea
+          <input
+            type="text"
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSubmit()
-              }
-            }}
-            placeholder="Write a comment..."
-            className="flex-1 resize-none rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
-            rows={2}
+            placeholder="Add a comment..."
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           <button
-            onClick={handleSubmit}
-            disabled={!newComment.trim()}
-            className="self-end rounded-md bg-blue-600 p-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600"
+            type="submit"
+            disabled={submitting || !newComment.trim()}
+            className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            <Send size={16} />
+            <Send className="h-4 w-4" />
           </button>
         </div>
-      </div>
+      </form>
     </div>
   )
 }

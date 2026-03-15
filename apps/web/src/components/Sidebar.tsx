@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import {
   LayoutDashboard,
   FolderOpen,
@@ -55,8 +55,8 @@ export default function Sidebar() {
   }
 
   const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    const { logout } = useAuth()
+    logout()
     router.push('/login')
     router.refresh()
   }

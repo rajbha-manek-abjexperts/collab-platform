@@ -1,20 +1,25 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { Plus, FolderOpen, Users, MoreHorizontal, Loader2 } from 'lucide-react'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 
 export default function WorkspacesPage() {
-  const { list, create } = useWorkspaces()
-  const workspaces = list.data ?? []
+  const { workspaces, loading, error, refetch, createWorkspace } = useWorkspaces()
+  const [creating, setCreating] = useState(false)
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const name = prompt('Workspace name:')
     if (name?.trim()) {
-      create.mutate({
-        name: name.trim(),
-        slug: name.trim().toLowerCase().replace(/\s+/g, '-'),
-      })
+      try {
+        setCreating(true)
+        await createWorkspace(name.trim(), name.trim().toLowerCase().replace(/\s+/g, '-'))
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to create workspace')
+      } finally {
+        setCreating(false)
+      }
     }
   }
 
@@ -30,10 +35,10 @@ export default function WorkspacesPage() {
         </div>
         <button
           onClick={handleCreate}
-          disabled={create.isPending}
+          disabled={creating}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
         >
-          {create.isPending ? (
+          {creating ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Plus className="h-4 w-4" />
@@ -43,15 +48,15 @@ export default function WorkspacesPage() {
       </div>
 
       {/* Loading State */}
-      {list.isLoading ? (
+      {loading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
         </div>
-      ) : list.isError ? (
+      ) : error ? (
         <div className="text-center py-16 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl">
-          <p className="text-red-500 mb-2">Failed to load workspaces</p>
+          <p className="text-red-500 mb-2">{error}</p>
           <button
-            onClick={() => list.refetch()}
+            onClick={() => refetch()}
             className="text-sm text-blue-600 hover:underline"
           >
             Retry
@@ -92,11 +97,9 @@ export default function WorkspacesPage() {
                 </button>
               </div>
               <h3 className="font-medium mb-1">{ws.name}</h3>
-              {ws.description && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">
-                  {ws.description}
-                </p>
-              )}
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                {ws.slug}
+              </p>
               <div className="flex items-center gap-1 text-xs text-gray-400">
                 <Users className="h-3.5 w-3.5" />
                 <span>Workspace</span>

@@ -1,7 +1,7 @@
 import { Controller, Get, Query, Body } from '@nestjs/common'
 import { ExportService } from './export.service'
 
-@Controller('api/export')
+@Controller('export')
 export class ExportController {
   constructor(private exportService: ExportService) {}
 

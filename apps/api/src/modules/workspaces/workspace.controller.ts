@@ -9,11 +9,11 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { SupabaseAuthGuard } from '../../common/guards/auth.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { WorkspaceService } from './workspace.service';
 
 @Controller('workspaces')
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class WorkspaceController {
   constructor(private workspaceService: WorkspaceService) {}
 

@@ -34,9 +34,12 @@ export default function LoginPage() {
         throw new Error(data.message || 'Login failed')
       }
 
-      // Store token
+      // Store token in localStorage and cookies
       localStorage.setItem('access_token', data.access_token)
       localStorage.setItem('user', JSON.stringify(data.user))
+      
+      // Set cookie for middleware
+      document.cookie = `access_token=${data.access_token}; path=/; max-age=604800`
 
       router.push('/dashboard')
       router.refresh()

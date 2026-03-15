@@ -1,11 +1,12 @@
 'use client'
 
-import { use, useCallback, useState, useEffect } from 'react'
+import { use, useCallback, useState, useEffect, use } from 'react'
 import { ArrowLeft, Share2, Users, Clock, MoreHorizontal, Edit2, Eye, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import DocumentEditor from '@/components/DocumentEditor'
 import DocumentViewer from '@/components/DocumentViewer'
+import { useDocuments } from '@/hooks/useDocuments'
 import type { OutputData } from '@editorjs/editorjs'
 
 // Dynamic import for RichTextEditor to avoid SSR issues
@@ -29,58 +30,120 @@ export default function DocumentPage({
   const [isEditing, setIsEditing] = useState(true)
   const [content, setContent] = useState<OutputData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
-  // Load document from localStorage on mount
+  // Demo workspace ID - in production, get from context/routing
+  const workspaceId = 'default-workspace'
+
+  // Load document from API
   useEffect(() => {
-    const saved = localStorage.getItem(`document_${id}`)
-    if (saved) {
+    async function loadDocument() {
       try {
-        const parsed = JSON.parse(saved)
-        setContent(parsed)
+        const token = localStorage.getItem('auth_token')
+        const response = await fetch(`http://localhost:3002/api/workspaces/${workspaceId}/documents/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
         
-        // Try to extract title from first header block
-        const headerBlock = parsed.blocks?.find((b: any) => b.type === 'header')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.content) {
+            setContent(data.content)
+          }
+          if (data.title) {
+            setTitle(data.title)
+          }
+        } else {
+          // Fallback to localStorage if API fails
+          const saved = localStorage.getItem(`document_${id}`)
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved)
+              setContent(parsed)
+            } catch (e) {
+              console.error('Error parsing saved document:', e)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading document:', error)
+        // Fallback to localStorage
+        const saved = localStorage.getItem(`document_${id}`)
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved)
+            setContent(parsed)
+          } catch (e) {
+            console.error('Error parsing saved document:', e)
+          }
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDocument()
+  }, [id, workspaceId])
+
+  const handleSave = useCallback(
+    async (newContent: any) => {
+      setSaving(true)
+      try {
+        const token = localStorage.getItem('auth_token')
+        
+        // Try to save to API first
+        const response = await fetch(`http://localhost:3002/api/workspaces/${workspaceId}/documents/${id}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title,
+            content: newContent
+          })
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.title) setTitle(data.title)
+        } else {
+          // Fallback to localStorage if API fails
+          const contentJson = JSON.stringify(newContent)
+          localStorage.setItem(`document_${id}`, contentJson)
+        }
+        
+        setContent(newContent)
+        setLastSaved(new Date())
+        
+        // Update title from first header
+        const headerBlock = newContent.blocks?.find((b: any) => b.type === 'header')
         if (headerBlock?.data?.text) {
           setTitle(headerBlock.data.text)
         }
-      } catch (e) {
-        console.error('Error parsing saved document:', e)
-      }
-    }
-    setLoading(false)
-  }, [id])
-
-  const handleSave = useCallback(
-    (newContent: any) => {
-      // Save to localStorage for demo
-      const contentJson = JSON.stringify(newContent)
-      localStorage.setItem(`document_${id}`, contentJson)
-      setContent(newContent)
-      setLastSaved(new Date())
-      
-      // Update title from first header
-      const headerBlock = newContent.blocks?.find((b: any) => b.type === 'header')
-      if (headerBlock?.data?.text) {
-        setTitle(headerBlock.data.text)
+      } catch (error) {
+        console.error('Error saving document:', error)
+        // Fallback to localStorage
+        const contentJson = JSON.stringify(newContent)
+        localStorage.setItem(`document_${id}`, contentJson)
+        setContent(newContent)
+        setLastSaved(new Date())
+      } finally {
+        setSaving(false)
       }
     },
-    [id]
+    [id, workspaceId, title]
   )
 
   const toggleMode = useCallback(() => {
-    if (isEditing) {
+    if (isEditing && content) {
       // Save before switching to view mode
-      const currentContent = localStorage.getItem(`document_${id}`)
-      if (currentContent) {
-        try {
-          setContent(JSON.parse(currentContent))
-        } catch (e) {
-          console.error('Error loading content:', e)
-        }
-      }
+      localStorage.setItem(`document_${id}`, JSON.stringify(content))
     }
     setIsEditing(!isEditing)
-  }, [isEditing, id])
+  }, [isEditing, content, id])
 
   if (loading) {
     return (
@@ -111,7 +174,13 @@ export default function DocumentPage({
             />
             <div className="flex items-center gap-2 text-xs text-gray-400">
               <span>{id.slice(0, 8)}</span>
-              {lastSaved && (
+              {saving && (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              )}
+              {lastSaved && !saving && (
                 <>
                   <span>·</span>
                   <Clock className="h-3 w-3" />

@@ -14,11 +14,13 @@ import {
   Monitor,
 } from 'lucide-react'
 import { useTheme } from '@/lib/theme-provider'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
   const { theme, setTheme } = useTheme()
+  const { user, logout } = useAuth()
 
   const cycleTheme = () => {
     const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
@@ -84,7 +86,7 @@ export default function Header() {
             </div>
             <div className="hidden sm:block text-left">
               <p className="text-sm font-medium text-foreground leading-tight">
-                John Doe
+                {user?.email || user?.first_name || user?.last_name || "User"}
               </p>
               <p className="text-[11px] text-muted-foreground leading-tight">
                 Pro Plan
@@ -101,8 +103,8 @@ export default function Header() {
               />
               <div className="absolute right-0 mt-1 w-56 bg-dropdown border border-sidebar-border rounded-lg shadow-lg z-50 py-1">
                 <div className="px-3 py-2.5 border-b border-sidebar-border">
-                  <p className="text-sm font-medium text-foreground">John Doe</p>
-                  <p className="text-xs text-muted-foreground">john@example.com</p>
+                  <p className="text-sm font-medium text-foreground">{user?.email || user?.first_name || user?.last_name || "User"}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email || "user@example.com"}</p>
                 </div>
                 <div className="py-1">
                   <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-hover hover:text-foreground transition-colors">

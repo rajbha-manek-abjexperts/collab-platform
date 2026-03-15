@@ -15,4 +15,9 @@ export class AIController {
     const documents = JSON.parse(documentsJson || '[]');
     return this.aiService.smartSearch(query, documents);
   }
+
+  @Post('grammar')
+  async grammar(@Body() body: { text: string }) {
+    return this.aiService.checkGrammar(body.text);
+  }
 }

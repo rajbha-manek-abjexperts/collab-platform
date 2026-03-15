@@ -1,38 +1,81 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { SupabaseService } from '../../supabase/supabase.service';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-  constructor(private supabaseService: SupabaseService) {}
+  // In-memory user store for demo
+  private users: Map<string, { id: string; email: string; password: string }> = new Map();
 
-  async signUp(email: string, password: string) {
-    const { data, error } = await this.supabaseService
-      .getClient()
-      .auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
+  constructor(private jwtService: JwtService) {
+    // Add demo users
+    this.users.set('admin@test.com', { id: 'user-1', email: 'admin@test.com', password: 'Test123456!' });
+    this.users.set('test@test.com', { id: 'user-2', email: 'test@test.com', password: 'password123' });
+  }
+
+  async validateUser(email: string, password: string): Promise<any> {
+    const user = this.users.get(email);
+
+    if (!user) {
+      // Auto-create user for demo
+      const newUser = {
+        id: 'user-' + Date.now(),
+        email: email,
+        password: password,
+      };
+      this.users.set(email, newUser);
+      
+      const token = this.jwtService.sign({ 
+        id: newUser.id, 
+        email: newUser.email,
+        sub: newUser.id 
       });
 
-    if (error) throw new UnauthorizedException(error.message);
-    return { user: data.user };
+      return {
+        user: { id: newUser.id, email: newUser.email },
+        access_token: token,
+        refresh_token: token,
+      };
+    }
+
+    if (user.password !== password) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const token = this.jwtService.sign({ 
+      id: user.id, 
+      email: user.email,
+      sub: user.id 
+    });
+
+    return {
+      user: { id: user.id, email: user.email },
+      access_token: token,
+      refresh_token: token,
+    };
   }
 
-  async signIn(email: string, password: string) {
-    const { data, error } = await this.supabaseService
-      .getClient()
-      .auth.signInWithPassword({ email, password });
+  async signup(email: string, password: string, firstName?: string, lastName?: string) {
+    if (this.users.has(email)) {
+      throw new UnauthorizedException('User already exists');
+    }
 
-    if (error) throw new UnauthorizedException(error.message);
-    return { user: data.user, session: data.session };
-  }
+    const newUser = {
+      id: 'user-' + Date.now(),
+      email: email,
+      password: password,
+    };
+    this.users.set(email, newUser);
 
-  async signOut(accessToken: string) {
-    const { error } = await this.supabaseService
-      .getClient()
-      .auth.admin.signOut(accessToken);
+    const token = this.jwtService.sign({ 
+      id: newUser.id, 
+      email: newUser.email,
+      sub: newUser.id 
+    });
 
-    if (error) throw new UnauthorizedException(error.message);
-    return { message: 'Signed out successfully' };
+    return {
+      user: { id: newUser.id, email: newUser.email },
+      access_token: token,
+      refresh_token: token,
+    };
   }
 }

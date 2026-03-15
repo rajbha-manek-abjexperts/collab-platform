@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Search, Send, Paperclip, MoreVertical, Phone, Video } from 'lucide-react'
-import { useChat } from '@/hooks/useChat'
 
 const DEMO_USER = {
   id: 'user-1',
@@ -31,7 +30,6 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
-  const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Load messages when contact changes
@@ -80,14 +78,7 @@ export default function MessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Simulate typing indicator
-  useEffect(() => {
-    if (newMessage.length > 0) {
-      setIsTyping(true)
-    } else {
-      setIsTyping(false)
-    }
-  }, [newMessage])
+  // Remove typing indicator when it was incorrectly showing contact typing while user types
 
   const handleSendMessage = () => {
     if (!newMessage.trim()) return
@@ -157,7 +148,13 @@ export default function MessagesPage() {
                   <p className="font-medium text-gray-900 truncate">{contact.name}</p>
                   <span className="text-xs text-gray-400">2m</span>
                 </div>
-                <p className="text-sm text-gray-500 truncate">Hey, did you see the latest designs?</p>
+                <p className="text-sm text-gray-500 truncate">
+                  {contact.id === 'user-2' && 'Added them to the shared folder.'}
+                  {contact.id === 'user-3' && 'Just wanted to make sure it\'s on your radar.'}
+                  {contact.id === 'user-4' && 'I\'ll bring the project timeline.'}
+                  {contact.id === 'user-5' && 'They want a follow-up next week.'}
+                  {contact.id === 'user-6' && 'Which auth method for webhooks?'}
+                </p>
               </div>
             </button>
           ))}
@@ -233,23 +230,6 @@ export default function MessagesPage() {
                   </div>
                 )
               })}
-              
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="flex items-end gap-2">
-                    <div className={`w-8 h-8 bg-gradient-to-br ${selectedContact.color} rounded-full flex items-center justify-center text-white text-sm font-medium`}>
-                      {selectedContact.avatar}
-                    </div>
-                    <div className="bg-gray-100 rounded-2xl rounded-bl-md p-3">
-                      <div className="flex gap-1">
-                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
-                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
               
               <div ref={messagesEndRef} />
             </div>

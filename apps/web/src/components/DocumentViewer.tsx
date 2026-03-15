@@ -36,29 +36,28 @@ export default function DocumentViewer({ content }: DocumentViewerProps) {
       {data.blocks.map((block: any, index: number) => {
         switch (block.type) {
           case 'header':
-            const level = block.data.level || 2
-            const HeadingComponent = {
-              1: 'h1',
-              2: 'h2', 
-              3: 'h3',
-              4: 'h4'
-            }[level as keyof typeof { 1: 'h1', 2: 'h2', 3: 'h3', 4: 'h4' }] || 'h2'
+            const level = (block.data?.level || 2) as number
+            const getHeadingTag = (lvl: number): string => {
+              const tags: Record<number, string> = { 1: 'h1', 2: 'h2', 3: 'h3', 4: 'h4' }
+              return tags[lvl] || 'h2'
+            }
+            const HeadingTag = getHeadingTag(level)
             
-            if (HeadingComponent === 'h1') {
+            if (HeadingTag === 'h1') {
               return (
                 <h1 key={index} className="text-4xl font-bold text-gray-900 mb-6 mt-8">
                   {block.data.text}
                 </h1>
               )
             }
-            if (HeadingComponent === 'h2') {
+            if (HeadingTag === 'h2') {
               return (
                 <h2 key={index} className="text-2xl font-semibold text-gray-900 mb-4 mt-6">
                   {block.data.text}
                 </h2>
               )
             }
-            if (HeadingComponent === 'h3') {
+            if (HeadingTag === 'h3') {
               return (
                 <h3 key={index} className="text-xl font-semibold text-gray-900 mb-3 mt-5">
                   {block.data.text}
@@ -163,12 +162,12 @@ export default function DocumentViewer({ content }: DocumentViewerProps) {
               warning: <AlertTriangle className="w-5 h-5" />,
               success: <CheckCircle className="w-5 h-5" />
             }
-            const level = block.data.message || 'info'
+            const warningLevel = block.data.message || 'info'
             return (
-              <div key={index} className={`mb-4 p-4 rounded-xl border-l-4 ${warningStyles[level as keyof typeof warningStyles] || warningStyles.info}`}>
+              <div key={index} className={`mb-4 p-4 rounded-xl border-l-4 ${warningStyles[warningLevel as keyof typeof warningStyles] || warningStyles.info}`}>
                 <div className="flex items-start gap-3">
                   <span className="flex-shrink-0 mt-0.5">
-                    {warningIcons[level as keyof typeof warningIcons] || warningIcons.info}
+                    {warningIcons[warningLevel as keyof typeof warningIcons] || warningIcons.info}
                   </span>
                   <div>
                     {block.data.title && (

@@ -1,17 +1,28 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  SubscribeMessage,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  MessageBody,
+  ConnectedSocket,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { Logger } from '@nestjs/common';
 
-@Injectable()
-export class MessagesGateway {
+@WebSocketGateway({
+  cors: {
+    origin: '*',
+    credentials: true,
+  },
+})
+export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  @WebSocketServer()
+  server: Server;
+
   private readonly logger = new Logger(MessagesGateway.name);
-  private server: Server;
   private userSockets: Map<string, Set<string>> = new Map();
   private typingTimers: Map<string, NodeJS.Timeout> = new Map();
-
-  afterInit(server: Server) {
-    this.server = server;
-    this.logger.log('WebSocket Gateway initialized');
-  }
 
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
@@ -19,7 +30,6 @@ export class MessagesGateway {
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
-    // Remove socket from user mappings
     this.userSockets.forEach((sockets, userId) => {
       sockets.delete(client.id);
       if (sockets.size === 0) {
@@ -28,69 +38,65 @@ export class MessagesGateway {
     });
   }
 
-  // Handle user joining with their user ID
-  registerUser(client: Socket, userId: string) {
+  @SubscribeMessage('register')
+  handleRegister(@ConnectedSocket() client: Socket, @MessageBody() data: { userId: string }) {
+    const { userId } = data;
     if (!this.userSockets.has(userId)) {
       this.userSockets.set(userId, new Set());
     }
     this.userSockets.get(userId)!.add(client.id);
     client.data.userId = userId;
     this.logger.log(`User ${userId} registered with socket ${client.id}`);
+    return { event: 'registered', data: { userId } };
   }
 
-  // Join a conversation room
-  joinConversation(client: Socket, conversationId: string) {
+  @SubscribeMessage('join_conversation')
+  handleJoinConversation(@ConnectedSocket() client: Socket, @MessageBody() data: { conversationId: string }) {
+    const { conversationId } = data;
     client.join(conversationId);
     this.logger.log(`Socket ${client.id} joined conversation ${conversationId}`);
-    
-    // Notify others in the room
-    client.to(conversationId).emit('user_joined', {
-      conversationId,
-      userId: client.data.userId,
-    });
+    return { event: 'joined', data: { conversationId } };
   }
 
-  // Leave a conversation room
-  leaveConversation(client: Socket, conversationId: string) {
+  @SubscribeMessage('leave_conversation')
+  handleLeaveConversation(@ConnectedSocket() client: Socket, @MessageBody() data: { conversationId: string }) {
+    const { conversationId } = data;
     client.leave(conversationId);
     this.logger.log(`Socket ${client.id} left conversation ${conversationId}`);
-    
-    // Notify others in the room
-    client.to(conversationId).emit('user_left', {
-      conversationId,
-      userId: client.data.userId,
-    });
+    return { event: 'left', data: { conversationId } };
   }
 
-  // Handle new message
-  async handleMessage(client: Socket, payload: {
-    conversationId: string;
-    content: string;
+  @SubscribeMessage('send_message')
+  handleMessage(@ConnectedSocket() client: Socket, @MessageBody() data: { 
+    conversationId: string; 
+    content: string; 
     messageId: string;
-    timestamp: string;
   }) {
-    const { conversationId, content, messageId, timestamp } = payload;
-    const userId = client.data.userId;
+    const { conversationId, content, messageId } = data;
+    const senderId = client.data.userId || 'anonymous';
+    const timestamp = new Date().toISOString();
 
-    this.logger.log(`New message in ${conversationId} from ${userId}: ${content}`);
+    this.logger.log(`New message in ${conversationId} from ${senderId}: ${content}`);
 
-    // Broadcast to everyone in the conversation (including sender for confirmation)
+    // Broadcast to everyone in the conversation
     this.server.to(conversationId).emit('new_message', {
       id: messageId,
       conversationId,
-      senderId: userId,
+      senderId,
       content,
       timestamp,
-      status: 'sent',
     });
 
-    return { success: true, messageId };
+    return { event: 'message_sent', data: { success: true, messageId } };
   }
 
-  // Handle typing indicator
-  handleTyping(client: Socket, payload: { conversationId: string; isTyping: boolean }) {
-    const { conversationId, isTyping } = payload;
-    const userId = client.data.userId;
+  @SubscribeMessage('typing')
+  handleTyping(@ConnectedSocket() client: Socket, @MessageBody() data: { 
+    conversationId: string; 
+    isTyping: boolean;
+  }) {
+    const { conversationId, isTyping } = data;
+    const userId = client.data.userId || 'anonymous';
 
     // Clear existing timer
     const timerKey = `${conversationId}:${userId}`;
@@ -99,7 +105,6 @@ export class MessagesGateway {
     }
 
     if (isTyping) {
-      // Set a timeout to auto-stop typing after 3 seconds
       const timer = setTimeout(() => {
         this.server.to(conversationId).emit('user_stopped_typing', {
           conversationId,
@@ -110,17 +115,22 @@ export class MessagesGateway {
       this.typingTimers.set(timerKey, timer);
     }
 
-    // Broadcast typing status
     client.to(conversationId).emit('user_typing', {
       conversationId,
       userId,
       isTyping,
     });
+
+    return { event: 'typing_ack', data: { isTyping } };
   }
 
-  // Send message read receipt
-  handleReadReceipt(client: Socket, payload: { conversationId: string; messageId: string; userId: string }) {
-    const { conversationId, messageId, userId } = payload;
+  @SubscribeMessage('mark_read')
+  handleReadReceipt(@ConnectedSocket() client: Socket, @MessageBody() data: { 
+    conversationId: string; 
+    messageId: string;
+  }) {
+    const { conversationId, messageId } = data;
+    const userId = client.data.userId || 'anonymous';
     
     this.server.to(conversationId).emit('message_read', {
       conversationId,
@@ -128,20 +138,7 @@ export class MessagesGateway {
       readBy: userId,
       readAt: new Date().toISOString(),
     });
-  }
 
-  // Get online users in a conversation
-  getOnlineUsers(conversationId: string): string[] {
-    const room = this.server.sockets.adapter.rooms.get(conversationId);
-    if (!room) return [];
-    
-    const onlineUsers: string[] = [];
-    room.forEach((socketId) => {
-      const socket = this.server.sockets.sockets.get(socketId);
-      if (socket?.data.userId) {
-        onlineUsers.push(socket.data.userId);
-      }
-    });
-    return onlineUsers;
+    return { event: 'read_ack', data: { success: true } };
   }
 }

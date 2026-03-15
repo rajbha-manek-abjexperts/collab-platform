@@ -70,7 +70,7 @@ export default function RichTextEditor({
       },
       tools: {
         header: {
-          class: Header,
+          class: Header as any,
           config: {
             placeholder: 'Enter a heading',
             levels: [1, 2, 3, 4],
@@ -78,18 +78,18 @@ export default function RichTextEditor({
           }
         },
         list: {
-          class: List,
+          class: List as any,
           inlineToolbar: true,
           config: {
             defaultStyle: 'unordered'
           }
         },
         nestedList: {
-          class: NestedList,
+          class: NestedList as any,
           inlineToolbar: true
         },
         paragraph: {
-          class: Paragraph,
+          class: Paragraph as any,
           inlineToolbar: true
         },
         checklist: {
@@ -109,7 +109,7 @@ export default function RichTextEditor({
           }
         },
         table: {
-          class: Table,
+          class: Table as any,
           inlineToolbar: true,
           config: {
             rows: 2,
@@ -118,11 +118,11 @@ export default function RichTextEditor({
           }
         },
         link: {
-          class: Link,
+          class: Link as any,
           inlineToolbar: true
         },
         marker: {
-          class: Marker,
+          class: Marker as any,
           inlineToolbar: true
         },
         inlineCode: {

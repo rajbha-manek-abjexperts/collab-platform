@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Search, Send, Paperclip, MoreVertical, Phone, Video } from 'lucide-react'
+import { Search, Send, Paperclip, MoreVertical, Phone, Video, Loader2 } from 'lucide-react'
+import { useRealTimeChat } from '@/hooks/useRealTimeChat'
 
+// Demo user - in production, get from auth context
 const DEMO_USER = {
-  id: 'user-1',
+  id: 'b150774c-4f37-436f-bd17-0b9f28de036e', // admin@test.com UUID
   name: 'You',
   avatar: 'Y'
 }
@@ -29,93 +31,89 @@ export default function MessagesPage() {
   const [selectedContact, setSelectedContact] = useState(DEMO_CONTACTS[0])
   const [newMessage, setNewMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [messages, setMessages] = useState<Message[]>([])
+  const [isTypingLocal, setIsTypingLocal] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Use real-time chat hook
+  const { 
+    connected, 
+    messages, 
+    typingUsers, 
+    sendMessage, 
+    sendTyping, 
+    loadMessages 
+  } = useRealTimeChat({ 
+    userId: DEMO_USER.id,
+    serverUrl: 'http://localhost:3002'
+  })
 
   // Load messages when contact changes
   useEffect(() => {
-    if (!selectedContact) return
-
-    const contactId = selectedContact.id
-    const contactName = selectedContact.name.split(' ')[0]
-
-    const demoConversations: Record<string, Message[]> = {
-      'user-2': [
-        { id: '1', sender_id: 'user-2', content: 'Hey! Did you get a chance to look at the latest designs I shared?', created_at: '10:30 AM', status: 'read' },
-        { id: '2', sender_id: DEMO_USER.id, content: 'Yes! They look amazing. I love the new color scheme.', created_at: '10:32 AM', status: 'read' },
-        { id: '3', sender_id: 'user-2', content: "Great! I've made some more updates. Let me know what you think.", created_at: '10:35 AM', status: 'read' },
-        { id: '4', sender_id: DEMO_USER.id, content: "Sure, send them over! I'm in the workspace now.", created_at: '10:36 AM', status: 'read' },
-        { id: '5', sender_id: 'user-2', content: "Perfect! I've just added them to the shared folder.", created_at: '10:38 AM', status: 'read' },
-      ],
-      'user-3': [
-        { id: '1', sender_id: 'user-3', content: 'Have you reviewed the pull request yet?', created_at: '9:15 AM', status: 'read' },
-        { id: '2', sender_id: DEMO_USER.id, content: 'Not yet, I\'ll take a look this morning.', created_at: '9:20 AM', status: 'read' },
-        { id: '3', sender_id: 'user-3', content: 'No rush, just wanted to make sure it\'s on your radar.', created_at: '9:22 AM', status: 'read' },
-      ],
-      'user-4': [
-        { id: '1', sender_id: DEMO_USER.id, content: 'Hey Charlie, are we still meeting at 3pm?', created_at: '1:00 PM', status: 'read' },
-        { id: '2', sender_id: 'user-4', content: 'Yes! Conference room B. I\'ll bring the project timeline.', created_at: '1:05 PM', status: 'read' },
-        { id: '3', sender_id: DEMO_USER.id, content: 'Sounds good, see you then.', created_at: '1:06 PM', status: 'read' },
-      ],
-      'user-5': [
-        { id: '1', sender_id: 'user-5', content: 'The client loved the presentation!', created_at: '11:00 AM', status: 'read' },
-        { id: '2', sender_id: DEMO_USER.id, content: 'That\'s awesome news! Great teamwork.', created_at: '11:05 AM', status: 'read' },
-        { id: '3', sender_id: 'user-5', content: 'They want to schedule a follow-up next week.', created_at: '11:08 AM', status: 'read' },
-        { id: '4', sender_id: DEMO_USER.id, content: 'I\'ll block some time on the calendar.', created_at: '11:10 AM', status: 'read' },
-      ],
-      'user-6': [
-        { id: '1', sender_id: 'user-6', content: 'Quick question about the API integration.', created_at: '2:30 PM', status: 'read' },
-        { id: '2', sender_id: DEMO_USER.id, content: 'Sure, what\'s up?', created_at: '2:32 PM', status: 'read' },
-        { id: '3', sender_id: 'user-6', content: 'Which authentication method should we use for the webhook endpoints?', created_at: '2:33 PM', status: 'read' },
-      ],
+    if (selectedContact) {
+      loadMessages(selectedContact.id)
     }
-
-    setMessages(demoConversations[contactId] || [])
-  }, [selectedContact])
+  }, [selectedContact, loadMessages])
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Remove typing indicator when it was incorrectly showing contact typing while user types
+  // Handle typing indicator
+  const handleTyping = (value: string) => {
+    setNewMessage(value)
+    
+    // Send typing indicator
+    if (value.length > 0 && !isTypingLocal) {
+      setIsTypingLocal(true)
+      sendTyping(true)
+    }
+    
+    // Clear typing after 1 second of no typing
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTypingLocal(false)
+      sendTyping(false)
+    }, 1000)
+  }
 
   const handleSendMessage = () => {
     if (!newMessage.trim()) return
 
-    const message: Message = {
-      id: Date.now().toString(),
-      sender_id: DEMO_USER.id,
-      content: newMessage,
-      created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: 'sending'
-    }
-
-    setMessages(prev => [...prev, message])
+    sendMessage(newMessage)
     setNewMessage('')
-
-    // Simulate sent/delivered
-    setTimeout(() => {
-      setMessages(prev => 
-        prev.map(m => 
-          m.id === message.id 
-            ? { ...m, status: 'sent' as const }
-            : m
-        )
-      )
-    }, 500)
+    sendTyping(false)
+    setIsTypingLocal(false)
   }
 
   const filteredContacts = DEMO_CONTACTS.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // Filter messages for current conversation
+  const currentMessages = messages.filter(m => 
+    m.conversation_id === selectedContact.id
+  )
+
+  // If no messages from WebSocket, use demo data
+  const displayMessages = currentMessages.length > 0 ? currentMessages : [
+    { id: '1', sender_id: 'user-2', content: 'Hey! Did you get a chance to look at the latest designs?', created_at: '10:30 AM', status: 'read' as const },
+    { id: '2', sender_id: DEMO_USER.id, content: 'Yes! They look amazing. I love the new color scheme.', created_at: '10:32 AM', status: 'read' as const },
+    { id: '3', sender_id: 'user-2', content: "Great! I've made some more updates. Let me know what you think.", created_at: '10:35 AM', status: 'read' as const },
+  ]
+
+  // Check if someone is typing
+  const isOtherTyping = Array.from(typingUsers.values()).some(v => v)
+
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Conversations List */}
-      <div className="w-80 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex flex-col">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-800">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Messages</h1>
+      <div className="w-80 border-r border-gray-200 bg-white flex flex-col">
+        <div className="p-4 border-b border-gray-100">
+          <h1 className="text-xl font-bold text-gray-900 mb-4">Messages</h1>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -123,8 +121,16 @@ export default function MessagesPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search conversations..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-white"
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
+          </div>
+        </div>
+
+        {/* Connection status */}
+        <div className="px-4 py-2 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className="text-xs text-gray-500">{connected ? 'Connected' : 'Disconnected'}</span>
           </div>
         </div>
 
@@ -133,8 +139,8 @@ export default function MessagesPage() {
             <button
               key={contact.id}
               onClick={() => setSelectedContact(contact)}
-              className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left ${
-                selectedContact?.id === contact.id ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-50 dark:hover:bg-blue-900/30' : ''
+              className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors text-left ${
+                selectedContact?.id === contact.id ? 'bg-blue-50 hover:bg-blue-50' : ''
               }`}
             >
               <div className="relative">
@@ -145,16 +151,10 @@ export default function MessagesPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <p className="font-medium text-gray-900 dark:text-white truncate">{contact.name}</p>
+                  <p className="font-medium text-gray-900 truncate">{contact.name}</p>
                   <span className="text-xs text-gray-400">2m</span>
                 </div>
-                <p className="text-sm text-gray-500 truncate">
-                  {contact.id === 'user-2' && 'Added them to the shared folder.'}
-                  {contact.id === 'user-3' && 'Just wanted to make sure it\'s on your radar.'}
-                  {contact.id === 'user-4' && 'I\'ll bring the project timeline.'}
-                  {contact.id === 'user-5' && 'They want a follow-up next week.'}
-                  {contact.id === 'user-6' && 'Which auth method for webhooks?'}
-                </p>
+                <p className="text-sm text-gray-500 truncate">Click to start chatting</p>
               </div>
             </button>
           ))}
@@ -162,17 +162,17 @@ export default function MessagesPage() {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-gray-900">
+      <div className="flex-1 flex flex-col bg-white">
         {selectedContact ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 bg-gradient-to-br ${selectedContact.color} rounded-full flex items-center justify-center text-white font-medium`}>
                   {selectedContact.avatar}
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900 dark:text-white">{selectedContact.name}</p>
+                  <p className="font-semibold text-gray-900">{selectedContact.name}</p>
                   <p className="text-sm text-green-600 flex items-center gap-1">
                     <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                     Online
@@ -180,22 +180,22 @@ export default function MessagesPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
-                  <Phone className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                  <Phone className="w-5 h-5 text-gray-600" />
                 </button>
-                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
-                  <Video className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                  <Video className="w-5 h-5 text-gray-600" />
                 </button>
-                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
-                  <MoreVertical className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                  <MoreVertical className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
             </div>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((msg) => {
-                const isOwn = msg.sender_id === DEMO_USER.id
+              {displayMessages.map((msg) => {
+                const isOwn = msg.sender_id === DEMO_USER.id || msg.sender_id === DEMO_USER.id.replace(/-/g, '')
                 const contact = DEMO_CONTACTS.find(c => c.id === msg.sender_id)
                 
                 return (
@@ -209,9 +209,9 @@ export default function MessagesPage() {
                         {isOwn ? 'Y' : contact?.avatar}
                       </div>
                       <div className={`p-3 rounded-2xl ${
-                        isOwn
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-md'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
+                        isOwn 
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-md' 
+                          : 'bg-gray-100 text-gray-900 rounded-bl-md'
                       }`}>
                         <p className="whitespace-pre-wrap">{msg.content}</p>
                         <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
@@ -231,22 +231,39 @@ export default function MessagesPage() {
                 )
               })}
               
+              {isOtherTyping && (
+                <div className="flex justify-start">
+                  <div className="flex items-end gap-2">
+                    <div className={`w-8 h-8 bg-gradient-to-br ${selectedContact.color} rounded-full flex items-center justify-center text-white text-sm font-medium`}>
+                      {selectedContact.avatar}
+                    </div>
+                    <div className="bg-gray-100 rounded-2xl rounded-bl-md p-3">
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
             </div>
 
             {/* Message Input */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+            <div className="p-4 border-t border-gray-200">
               <div className="flex items-center gap-3">
-                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
-                  <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                  <Paperclip className="w-5 h-5 text-gray-600" />
                 </button>
                 <input
                   type="text"
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  onChange={(e) => handleTyping(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                   placeholder="Type a message..."
-                  className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-700 transition-all dark:text-white"
+                  className="flex-1 px-4 py-3 bg-gray-100 border-0 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                 />
                 <button 
                   onClick={handleSendMessage}
@@ -266,8 +283,8 @@ export default function MessagesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.189 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Select a conversation</h2>
-              <p className="text-gray-500 dark:text-gray-400">Choose a conversation from the list to start messaging</p>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Select a conversation</h2>
+              <p className="text-gray-500">Choose a conversation from the list to start messaging</p>
             </div>
           </div>
         )}

@@ -39,8 +39,13 @@ export class AIService {
         })
       });
 
+      if (!response.ok) {
+        this.logger.error(`MiniMax API returned ${response.status}: ${await response.text()}`);
+        return this.getDemoSummary(content);
+      }
+
       const data = await response.json();
-      
+
       if (data.choices && data.choices[0]) {
         const content = data.choices[0].message.content;
         try {
@@ -75,6 +80,7 @@ export class AIService {
     }
 
     try {
+      const docSummaries = documents.map(d => ({ id: d.id, title: d.title, content: d.content_text?.substring(0, 500) }));
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -84,18 +90,38 @@ export class AIService {
         body: JSON.stringify({
           model: 'MiniMax-M2.5',
           messages: [
-            { role: 'system', content: 'You are a search assistant. Given a query and documents, return the most relevant documents.' },
-            { role: 'user', content: `Query: ${query}\n\nDocuments: ${JSON.stringify(documents.map(d => ({ id: d.id, title: d.title, content: d.content_text?.substring(0, 500) })))}` }
-          ]
+            { role: 'system', content: 'You are a search assistant. Given a query and documents, return the IDs of the most relevant documents ranked by relevance. Return as JSON with a "ids" array of document IDs.' },
+            { role: 'user', content: `Query: ${query}\n\nDocuments: ${JSON.stringify(docSummaries)}` }
+          ],
+          response_format: {
+            type: 'json_object'
+          }
         })
       });
 
-      const data = await response.json();
-      
-      if (data.choices && data.choices[0]) {
+      if (!response.ok) {
+        this.logger.error(`MiniMax API returned ${response.status}: ${await response.text()}`);
         return documents;
       }
-      
+
+      const data = await response.json();
+
+      if (data.choices && data.choices[0]) {
+        try {
+          const parsed = JSON.parse(data.choices[0].message.content);
+          if (parsed.ids && Array.isArray(parsed.ids)) {
+            const idOrder = new Map(parsed.ids.map((id: string, i: number) => [id, i]));
+            const ranked = documents
+              .filter(d => idOrder.has(d.id))
+              .sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
+            return ranked.length > 0 ? ranked : documents;
+          }
+        } catch {
+          // Fall through to return all documents
+        }
+        return documents;
+      }
+
       return documents;
     } catch (error) {
       this.logger.error('MiniMax API error:', error);
@@ -130,6 +156,11 @@ export class AIService {
           }
         })
       });
+
+      if (!response.ok) {
+        this.logger.error(`MiniMax API returned ${response.status}: ${await response.text()}`);
+        return { issues: [], suggestions: [] };
+      }
 
       const data = await response.json();
       

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { createClient } from '@supabase/supabase-js';
 
-interface Message {
+export interface Message {
   id: string;
   conversation_id: string;
   sender_id: string;
@@ -10,7 +10,7 @@ interface Message {
   read_by?: string[];
 }
 
-interface Conversation {
+export interface Conversation {
   id: string;
   participants: string[];
   last_message: string;

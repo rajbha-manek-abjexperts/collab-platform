@@ -8,6 +8,7 @@ import { WorkspaceModule } from './modules/workspaces/workspace.module';
 import { DocumentModule } from './modules/documents/document.module';
 import { WhiteboardModule } from './modules/whiteboard/whiteboard.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
+import { VersionsModule } from './modules/versions/versions.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
     DocumentModule,
     WhiteboardModule,
     RealtimeModule,
+    VersionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

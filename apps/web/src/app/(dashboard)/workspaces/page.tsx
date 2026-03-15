@@ -82,7 +82,7 @@ export default function WorkspacesPage() {
           {workspaces.map((ws, i) => (
             <Link
               key={ws.id || i}
-              href={`/workspaces/${ws.slug}`}
+              href={`/workspaces/${ws.id || ws.slug}`}
               className="block p-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
             >
               <div className="flex items-start justify-between mb-3">

@@ -14,6 +14,8 @@ import { ReactionsModule } from './modules/reactions/reactions.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     StorageModule,
     NotificationsModule,
     AnalyticsModule,
+    AuditModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

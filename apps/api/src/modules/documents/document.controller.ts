@@ -37,12 +37,12 @@ export class DocumentController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: { title?: string; content?: object }) {
-    return this.documentService.update(id, body);
+  update(@Req() req, @Param('id') id: string, @Body() body: { title?: string; content?: object }) {
+    return this.documentService.update(id, body, req.user.id);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.documentService.remove(id);
+  remove(@Req() req, @Param('id') id: string) {
+    return this.documentService.remove(id, req.user.id);
   }
 }

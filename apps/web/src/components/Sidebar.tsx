@@ -18,12 +18,16 @@ import {
   Users,
   MessageSquare,
   Bell,
+  Layers,
+  BarChart3,
 } from 'lucide-react'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/workspaces', label: 'Workspaces', icon: FolderOpen },
   { href: '/documents', label: 'Documents', icon: FileText },
+  { href: '/templates', label: 'Templates', icon: Layers },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
 ]
 
 const secondaryNavItems = [

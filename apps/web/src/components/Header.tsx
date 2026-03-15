@@ -9,11 +9,24 @@ import {
   Settings,
   LogOut,
   HelpCircle,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react'
+import { useTheme } from '@/lib/theme-provider'
 
 export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
+  const { theme, setTheme } = useTheme()
+
+  const cycleTheme = () => {
+    const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
+    setTheme(next)
+  }
+
+  const ThemeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor
+  const themeLabel = theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'System'
 
   return (
     <header className="h-14 border-b border-header-border bg-header flex items-center justify-between px-6 shrink-0">
@@ -42,6 +55,15 @@ export default function Header() {
 
       {/* Right Section */}
       <div className="flex items-center gap-1">
+        {/* Theme Toggle */}
+        <button
+          onClick={cycleTheme}
+          className="relative p-2 rounded-lg text-muted-foreground hover:bg-header-hover hover:text-foreground transition-colors"
+          title={`Theme: ${themeLabel}`}
+        >
+          <ThemeIcon className="h-4.5 w-4.5" />
+        </button>
+
         {/* Notifications */}
         <button className="relative p-2 rounded-lg text-muted-foreground hover:bg-header-hover hover:text-foreground transition-colors">
           <Bell className="h-4.5 w-4.5" />

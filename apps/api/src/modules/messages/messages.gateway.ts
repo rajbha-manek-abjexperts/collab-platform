@@ -15,14 +15,14 @@ import { Logger } from '@nestjs/common';
     origin: '*',
     credentials: true,
   },
+  path: '/socket.io',
+  transports: ['websocket', 'polling'],
 })
 export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(MessagesGateway.name);
-  private userSockets: Map<string, Set<string>> = new Map();
-  private typingTimers: Map<string, NodeJS.Timeout> = new Map();
 
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
@@ -30,21 +30,11 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
-    this.userSockets.forEach((sockets, userId) => {
-      sockets.delete(client.id);
-      if (sockets.size === 0) {
-        this.userSockets.delete(userId);
-      }
-    });
   }
 
   @SubscribeMessage('register')
   handleRegister(@ConnectedSocket() client: Socket, @MessageBody() data: { userId: string }) {
     const { userId } = data;
-    if (!this.userSockets.has(userId)) {
-      this.userSockets.set(userId, new Set());
-    }
-    this.userSockets.get(userId)!.add(client.id);
     client.data.userId = userId;
     this.logger.log(`User ${userId} registered with socket ${client.id}`);
     return { event: 'registered', data: { userId } };
@@ -97,23 +87,6 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   }) {
     const { conversationId, isTyping } = data;
     const userId = client.data.userId || 'anonymous';
-
-    // Clear existing timer
-    const timerKey = `${conversationId}:${userId}`;
-    if (this.typingTimers.has(timerKey)) {
-      clearTimeout(this.typingTimers.get(timerKey)!);
-    }
-
-    if (isTyping) {
-      const timer = setTimeout(() => {
-        this.server.to(conversationId).emit('user_stopped_typing', {
-          conversationId,
-          userId,
-        });
-        this.typingTimers.delete(timerKey);
-      }, 3000);
-      this.typingTimers.set(timerKey, timer);
-    }
 
     client.to(conversationId).emit('user_typing', {
       conversationId,

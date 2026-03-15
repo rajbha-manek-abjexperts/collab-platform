@@ -1,6 +1,19 @@
+export interface EditorJsBlock {
+  id?: string
+  type: string
+  data: Record<string, unknown>
+}
+
+export interface EditorJsData {
+  time?: number
+  blocks: EditorJsBlock[]
+  version?: string
+}
+
 export interface DocumentContent {
-  html: string
-  plainText: string
+  html?: string
+  plainText?: string
+  editorJs?: EditorJsData
 }
 
 export interface Document {

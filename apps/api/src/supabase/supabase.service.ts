@@ -7,10 +7,14 @@ export class SupabaseService {
   private supabase: SupabaseClient;
 
   constructor(private configService: ConfigService) {
-    this.supabase = createClient(
-      this.configService.get<string>('SUPABASE_URL'),
-      this.configService.get<string>('SUPABASE_SERVICE_KEY'),
-    );
+    const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
+    const supabaseKey = this.configService.get<string>('SUPABASE_SERVICE_KEY');
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY environment variable');
+    }
+
+    this.supabase = createClient(supabaseUrl, supabaseKey);
   }
 
   getClient(): SupabaseClient {

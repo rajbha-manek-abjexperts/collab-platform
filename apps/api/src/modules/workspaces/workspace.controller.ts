@@ -20,9 +20,11 @@ export class WorkspaceController {
   @Post()
   create(
     @Req() req,
-    @Body() body: { name: string; slug: string; description?: string },
+    @Body() body: { name: string; slug?: string; description?: string },
   ) {
-    return this.workspaceService.create(req.user.id, body);
+    // Auto-generate slug if not provided
+    const slug = body.slug || body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    return this.workspaceService.create(req.user.id, { ...body, slug });
   }
 
   @Get()

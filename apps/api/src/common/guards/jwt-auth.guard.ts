@@ -17,13 +17,13 @@ export class JwtAuthGuard implements CanActivate {
     // For demo mode, allow requests without token
     if (!authHeader) {
       // Create a demo user for requests without auth (valid UUID format)
-      request.user = { id: '00000000-0000-0000-0000-000000000001', email: 'demo@test.com' };
+      request.user = { id: 'user-2', email: 'demo@test.com' };
       return true;
     }
 
     if (!authHeader.startsWith('Bearer ')) {
       // Create demo user for non-bearer tokens
-      request.user = { id: '00000000-0000-0000-0000-000000000001', email: 'demo@test.com' };
+      request.user = { id: 'user-2', email: 'demo@test.com' };
       return true;
     }
 
@@ -35,7 +35,7 @@ export class JwtAuthGuard implements CanActivate {
       return true;
     } catch (error) {
       // For demo mode, allow requests even with invalid tokens
-      request.user = { id: '00000000-0000-0000-0000-000000000001', email: 'demo@test.com' };
+      request.user = { id: 'user-2', email: 'demo@test.com' };
       return true;
     }
   }
